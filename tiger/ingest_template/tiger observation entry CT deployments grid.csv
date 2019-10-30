@@ -1,5 +1,1 @@
-country,grid,name of observer/PI,organizational affliation,email address,project ID,deployment ID,grid cell label,deployment date/time,pickup date/time,bait,quiet period setting,large prey,small prey,livestock,notes
-,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,
+country,grid,name of observer/PI,organizational affliation,email address,project ID,deployment ID,grid cell label,deployment date/time,pickup date/time,bait,quiet period setting,large prey,small prey,large livestock,small livestock,notes
