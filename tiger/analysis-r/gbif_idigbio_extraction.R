@@ -62,7 +62,7 @@ raw = eval(parse(text = (paste("bind_rows(",
                                      collapse = ","),
                                ")"))))
 
-# change country names to lowercase (some countries named differently)
+# change country names to lowercase
 raw$country <- tolower(raw$country)
 
 # keep machine and human observations (removed preserved specimens)
@@ -81,9 +81,10 @@ tiger_obs <- tiger_obs[,colSums(is.na(tiger_obs))<nrow(tiger_obs)]
 # Sign survey data
 ################################
 
-tiger_SS_raw <- tiger_obs %>% dplyr::filter(basisOfRecord == 'HUMAN_OBSERVATION',
-                                            )
+# filter for human observations
+tiger_SS_raw <- tiger_obs %>% dplyr::filter(basisOfRecord == 'HUMAN_OBSERVATION')
 
+# convert data into ingest schema
 tiger_SS <- tiger_SS_raw %>%  dplyr::select(country, 
                                      recordedBy,
                                      institutionCode,
@@ -146,19 +147,17 @@ tiger_SS <- tiger_SS %>% dplyr::select(-recordedBy,
                              -sex,
                              -occurrenceRemarks)
 
-# str(tiger_SS)
-# table(tiger_SS$`# adult males`)
-# table(tiger_SS$`# adult females`)
-
 # write csv
-write.csv(tiger_SS, file = "tiger_SS_iDigBio_GBIF.csv")
+write.csv(tiger_SS, file = "tiger_SS_idigbio_gbif.csv")
 
 ################################
 # Camera trap data
 ################################
 
+# filter for machine observations
 tiger_CT_raw <- tiger_obs %>% dplyr::filter(basisOfRecord == 'MACHINE_OBSERVATION')
 
+# convert data into ingest schema
 tiger_CT <- tiger_CT_raw %>%  dplyr::select(country, 
                                             recordedBy,
                                             institutionCode,
@@ -170,44 +169,44 @@ tiger_CT <- tiger_CT_raw %>%  dplyr::select(country,
                                             informationWithheld,
                                             sex,
                                             occurrenceRemarks) %>% 
-  dplyr::mutate('country' = country,
-                'grid' = NA,
-                'name of observer/PI' = recordedBy,
-                'organizational affliation' = institutionCode,
-                'email address' = NA,
-                'observation date' = eventDate,
-                'grid cell label' = NA, 
-                'observation longitude' = round(longitude, digits = 5),
-                'observation latitude' = round(latitude, digits = 5),
-                'GPS' = geodeticDatum,
-                'Telemetry Fix' = NA,
-                'Map and Compass' = NA,
-                'Dead Reckoning (on map)' = NA,
-                'Report' = NA,
-                'other (describe in notes)' = NA,
-                'location notes' = locality, 
-                'Patrol Team' = NA, 
-                'Field team/staff incidental obs' = NA,
-                'local informant' = NA,
-                'other'= informationWithheld, 
-                'Photograph'= NA,
-                'Firsthand Sighting'= NA,
-                'Tracks'= NA,
-                'Scat'= NA,
-                'Telemetry'= NA,
-                'Tiger Mortality'= NA,
-                'Tiger Kill'= NA,
-                'Vocalizations Heard'= NA,
-                'Scrapes, Scentmarks'= NA,
-                'Report'= NA,
-                'other (describe in notes)' = NA,
-                'observation notes'= NA,
-                '# adult males' = ifelse(sex=="MALE",1,0),
-                '# adult females' = ifelse(sex=="FEMALE",1,0),
-                '# adults sex unknown' = ifelse(sex == 'NA',1,0),
-                '# Subadults (either sex - 1-2 years old)' = NA,
-                '# cubs (either sex - 1-12 month old)' = NA,
-                'notes' = occurrenceRemarks) 
+                              dplyr::mutate('country' = country,
+                                            'grid' = NA,
+                                            'name of observer/PI' = recordedBy,
+                                            'organizational affliation' = institutionCode,
+                                            'email address' = NA,
+                                            'observation date' = eventDate,
+                                            'grid cell label' = NA, 
+                                            'observation longitude' = round(longitude, digits = 5),
+                                            'observation latitude' = round(latitude, digits = 5),
+                                            'GPS' = geodeticDatum,
+                                            'Telemetry Fix' = NA,
+                                            'Map and Compass' = NA,
+                                            'Dead Reckoning (on map)' = NA,
+                                            'Report' = NA,
+                                            'other (describe in notes)' = NA,
+                                            'location notes' = locality, 
+                                            'Patrol Team' = NA, 
+                                            'Field team/staff incidental obs' = NA,
+                                            'local informant' = NA,
+                                            'other'= informationWithheld, 
+                                            'Photograph'= NA,
+                                            'Firsthand Sighting'= NA,
+                                            'Tracks'= NA,
+                                            'Scat'= NA,
+                                            'Telemetry'= NA,
+                                            'Tiger Mortality'= NA,
+                                            'Tiger Kill'= NA,
+                                            'Vocalizations Heard'= NA,
+                                            'Scrapes, Scentmarks'= NA,
+                                            'Report'= NA,
+                                            'other (describe in notes)' = NA,
+                                            'observation notes'= NA,
+                                            '# adult males' = ifelse(sex=="MALE",1,0),
+                                            '# adult females' = ifelse(sex=="FEMALE",1,0),
+                                            '# adults sex unknown' = ifelse(sex == 'NA',1,0),
+                                            '# Subadults (either sex - 1-2 years old)' = NA,
+                                            '# cubs (either sex - 1-12 month old)' = NA,
+                                            'notes' = occurrenceRemarks) 
 
 # remove unwanted columns
 tiger_CT <- tiger_CT %>% dplyr::select(-recordedBy,
@@ -221,7 +220,5 @@ tiger_CT <- tiger_CT %>% dplyr::select(-recordedBy,
                                        -sex,
                                        -occurrenceRemarks)
 
-#str(tiger_CT)
-
 # write csv
-write.csv(tiger_CT, file = "tiger_CT_iDigBio_GBIF.csv")
+write.csv(tiger_CT, file = "tiger_CT_idigbio_gbif.csv")
