@@ -1,0 +1,260 @@
+---
+title: "Integrated SDM"
+author: "Mari Roberts and Jessica Spencer"
+date: "10/31/2019"
+output: pdf_document
+---
+  
+**Helper Functions and Packages:**
+  
+```{r message=FALSE, warning=FALSE}
+# Load packages or install packages if they don't exist
+requiredPackages = c('raster',
+                     'fields',
+                     'mvtnorm',
+                     'matrixStats',
+                     'readr',
+                     'rgdal',
+                     'ggplot2',
+                     'dplyr')
+for(p in requiredPackages){
+  if(!require(p,character.only = TRUE)) install.packages(p)
+  library(p,character.only = TRUE)
+}
+
+# functions in separate R file
+source("functions.r")
+```
+
+# Sumatran Grid
+
+There are 1921 grid cells for Sumatra, Indonesia.
+
+```{r message=FALSE, warning=FALSE}
+unzip("/Users/mari/statistical_consulting/scl-obs/tiger/data/sumatragridmrgd.zip")
+
+sumatra_map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
+
+# shapefile has to be converted to a dataframe for use in ggplot2
+shapefile_df <- fortify(sumatra_map)
+
+# variable names in map
+# names(sumatra_map)
+
+# number of unique grid cells
+# unique(sumatra_map$ID)
+
+# plot shapefile
+map <- ggplot() +
+  geom_path(data = shapefile_df, 
+            aes(x = long, y = lat, group = group),
+            color = 'black', fill = 'white', size = .2)
+
+# change  projection
+map_projected <- map +
+  coord_map()
+print(map_projected)
+```
+
+## Preparing data for the Code
+--------------------------------------
+  All the data required for this function is stored in a file data.rda
+*s.occupancy* - raster with background covatiates that effect occupancy
+*s.detection* - raster with background covariates that effect detection
+*pb.occupancy* - matrix with covariates that effect occupancy in the locations of detected presences of the opportunistic survey
+*pb.detection* - matrix with covariates that effect detection in the locations of detected presences of the opportunistic survey
+*y.so* - matrix of detection/non detection of the PA surveys
+*so.occupancy* - matrix with covariates that effect occupancy in the locations of PA survey sites
+*so.detection* - matrix with covariates that effect detection in the locations of PA survey sites in each survey
+
+## 1. Matching y.so
+
+This section expands the dataframe so that there is a row for each time an area is surveyed. For example, if an area is surveyed 5 times, there are 5 rows for it, with the observation==1 on the times where a tiger or tiger signs were seen at the location in question. 
+
+```{r}
+# set working directory
+setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
+
+# read csv
+s.o.original = read.csv("Tiger_observation_entry_9_SS_Observations_SUMATRA.csv")
+
+# rename variables
+s.o.original = rename(s.o.original, 
+                      num.surveys = X..replicates.surveyed,
+                      grid = grid.cell.label, 
+                      replicate = replicate..)
+
+# populated the 0's 
+a = s.o.original %>% 
+  filter(observation == 0) %>% 
+  crossing(survey =(1:46)) %>% 
+  mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>% 
+  na.omit()
+
+a = dplyr::select(a,-c(good.survey))
+
+# expand the 1's
+b = s.o.original %>% 
+  filter(observation == 1) %>% 
+  crossing(survey =(1:46)) %>% 
+  mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>%
+  na.omit() %>%
+  mutate(true.observation = ifelse(survey!=replicate, 0, 1))
+
+b = dplyr::select(b,-c(good.survey,observation)) %>% 
+  rename(observation = true.observation)
+
+# combine the two
+so.filled =rbind(a,b)
+so.filled_a = 
+  dplyr::select(so.filled,-c(replicate)) %>%    
+  distinct(survey,
+           grid,
+           start.date,
+           observation,
+           .keep_all = T)
+
+#find the overlapping observations
+onlyOnes = filter(so.filled_a, observation ==1)
+onlyZs = filter(so.filled_a, observation == 0)
+reps = plyr::match_df(onlyZs, 
+                      onlyOnes,
+                      on = c("survey",
+                             "start.date",
+                             "grid"))
+
+# subtract overlapping observations from the expanded set
+final.filled = setdiff(so.filled_a,reps)
+```
+
+This next section will take that dataframe and turn it into a matrix of values. Each row will correspond to a survey.  If the survey happened 24 times, then the corresponding row will have 24 columns - either 0 or 1 - to denote whether a tiger was seen or not. The final dataframe is called *y.so*.
+
+*y.so* - matrix of detection/non detection of the PA surveys
+
+```{r}
+final.filled$survey_id = cumsum(!duplicated(final.filled[2:4]))
+strip.so = dplyr::select(final.filled,observation,survey,survey_id,grid)
+
+# final site occupancy data
+y.so = spread(strip.so,survey,observation)
+head(y.so)
+```
+
+# Adding covariates
+
+```{r}
+# read spatial covariates - only works for gri and grd files...???????
+
+# covatiates that effect occupancy - temp, rainfall, distance to streams, visible sky, human footprint?
+x.files=c("names of shapefiles")
+
+# covariates that effect detection - elevation and terrain?
+w.files=c("names of shapefiles")
+
+# s.occupancy - raster with background covatiates that effect occupancy
+for (i in c(x.files,w.files)) {
+  do.call('=',list(i, raster(i)))
+}
+s.occupancy = raster(get(x.files[1]))
+
+for (i in x.files) {
+  temp=get(i)
+  names(temp) = i
+  s.occupancy = addLayer(s.occupancy, temp)
+}
+
+# s.detection - raster with background covariates that effect detection
+s.detection= raster(get(w.files[1]))
+for (i in w.files) {
+  temp=get(i)
+  names(temp) = i
+  s.detection = addLayer(s.detection, temp)
+}
+```
+
+# 1. Ad Hoc
+
+See if ad hoc data is available.
+
+Will write code that includes github extraction.
+
+# 2. Presence Background Data - Camera Trap Data
+
+```{r}
+# set working directory
+setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
+
+# import camera trap data - NEED TO ADD TIM'S ADDITIONAL DATA
+tiger_CT_observations <- read.csv("Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
+tiger_CT_entry <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
+
+# merge camera trap entries and observation dataframes by deployment ID
+pb <- merge(tiger_CT_entry, tiger_CT_observations, 
+            by.x = "deployment.ID",
+            by.y = "deployment.ID")
+
+# keep variables - not including sex and age for now
+pb <- pb %>% select(deployment.ID, 
+                    project.ID.x, 
+                    observation.date.time,
+                    camera.latitude,
+                    camera.longitude,
+                    deployment.date.time,
+                    pickup.date.time,
+                    bait,
+                    large.prey,
+                    small.prey,
+                    livestock)
+
+# lat/long values only
+pb_latlong <- pb %>% select(camera.latitude,
+                            camera.longitude)
+
+pb.loc=SpatialPoints(pb_latlong)
+plot(pb.loc)
+```
+
+```{r}
+pb.occupancy=extract(s.occupancy,pb.loc)
+pb.detection=extract(s.detection,pb.loc)
+
+is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
+pb.detection=pb.detection[is.complete.pb,]
+pb.occupancy=pb.occupancy[is.complete.pb,]
+```
+
+## Simulate of covariates
+
+```{r}
+set.seed(123) # random
+n = 394 # number of survey site grids
+
+temp = rnorm(n, mean = 0, sd = 1)
+rainfall = rnorm(n, mean = 0, sd = 1)
+
+distance_to_road = rnorm(n, mean = 0, sd = 1)
+terrain = rnorm(n, mean = 0, sd = 1)
+
+so.occupancy = data.frame(temp, rainfall)
+so.detection = data.frame(distance_to_road, terrain)
+```
+
+```{r}
+
+```
+
+# 3. Presence-Absence Data - Site Occupancy Surveys
+
+
+
+
+
+
+
+
+
+
+
+
+
+
