@@ -231,10 +231,6 @@ pb <- pb %>% select(deployment.ID,
 pb_latlong <- pb %>% select(camera.latitude,
                             camera.longitude)
 
-## view points
-# pb.loc=SpatialPoints(pb_latlong)
-# plot(pb.loc)
-
 # LeuserCT2013 CT data - missing observation time
 tiger_CT_observations2 <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2.csv")
 
@@ -253,6 +249,10 @@ pb2_latlong <- pb2 %>% select(camera.latitude,
 
 # merge two dataframes of camera trap lat/long values
 pb_all <- merge(pb_latlong, pb2_latlong, all.x=TRUE, all.y=TRUE)
+
+## spatial points
+pb.loc=SpatialPoints(pb_all)
+# plot(pb.loc)
 ```
 
 ```{r}
