@@ -143,6 +143,21 @@ head(y.so)
 # Adding covariates
 
 ```{r}
+# Simulating Covariates?
+# set.seed(123) # random
+# n = 394 # number of survey site grids
+# 
+# temp = rnorm(n, mean = 0, sd = 1)
+# rainfall = rnorm(n, mean = 0, sd = 1)
+# 
+# distance_to_road = rnorm(n, mean = 0, sd = 1)
+# terrain = rnorm(n, mean = 0, sd = 1)
+# 
+# so.occupancy = data.frame(temp, rainfall)
+# so.detection = data.frame(distance_to_road, terrain)
+```
+
+```{r}
 # read spatial covariates - only works for gri and grd files...???????
 
 # covatiates that effect occupancy - temp, rainfall, distance to streams, visible sky, human footprint?
@@ -176,7 +191,11 @@ for (i in w.files) {
 
 See if ad hoc data is available.
 
-Will write code that includes github extraction.
+Will finish code that includes github extraction.
+
+```{r}
+source("gbif_idigbio_extraction.R")
+```
 
 # 2. Presence Background Data - Camera Trap Data
 
@@ -184,7 +203,9 @@ Will write code that includes github extraction.
 # set working directory
 setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 
-# import camera trap data - NEED TO ADD TIM'S ADDITIONAL DATA
+# import camera trap data
+
+# BBSNP2015 CT data
 tiger_CT_observations <- read.csv("Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
 tiger_CT_entry <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
 
@@ -210,8 +231,28 @@ pb <- pb %>% select(deployment.ID,
 pb_latlong <- pb %>% select(camera.latitude,
                             camera.longitude)
 
-pb.loc=SpatialPoints(pb_latlong)
-plot(pb.loc)
+## view points
+# pb.loc=SpatialPoints(pb_latlong)
+# plot(pb.loc)
+
+# LeuserCT2013 CT data - missing observation time
+tiger_CT_observations2 <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2.csv")
+
+pb2 <- tiger_CT_observations2 %>% select(project.ID, 
+                                         camera.latitude,
+                                         camera.longitude,
+                                         deployment.date.time,
+                                         pickup.date.time,
+                                         bait,
+                                         large.prey,
+                                         small.prey,
+                                         livestock)
+
+pb2_latlong <- pb2 %>% select(camera.latitude,
+                              camera.longitude)
+
+# merge two dataframes of camera trap lat/long values
+pb_all <- merge(pb_latlong, pb2_latlong, all.x=TRUE, all.y=TRUE)
 ```
 
 ```{r}
@@ -221,26 +262,6 @@ pb.detection=extract(s.detection,pb.loc)
 is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
 pb.detection=pb.detection[is.complete.pb,]
 pb.occupancy=pb.occupancy[is.complete.pb,]
-```
-
-## Simulate of covariates
-
-```{r}
-set.seed(123) # random
-n = 394 # number of survey site grids
-
-temp = rnorm(n, mean = 0, sd = 1)
-rainfall = rnorm(n, mean = 0, sd = 1)
-
-distance_to_road = rnorm(n, mean = 0, sd = 1)
-terrain = rnorm(n, mean = 0, sd = 1)
-
-so.occupancy = data.frame(temp, rainfall)
-so.detection = data.frame(distance_to_road, terrain)
-```
-
-```{r}
-
 ```
 
 # 3. Presence-Absence Data - Site Occupancy Surveys
