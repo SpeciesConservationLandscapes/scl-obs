@@ -232,6 +232,7 @@ head(pb.all)
 # spatial points
 # should be a list of lat and long values
 pb.loc=SpatialPoints(pb.all)
+head(pb.all)
 ```
 
 ## Covariates
@@ -252,7 +253,8 @@ setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 x.files=c("IDN_cov.grd")
 
 # data from https://www.diva-gis.org/datadown
-# covariates that effect detection - 
+# covariates should be Formal class RasterLayer
+# covariates that effect detection 
 # altitude of Indonesia
 w.files=c("IDN_alt.grd")
 
@@ -299,9 +301,10 @@ plot(s.detection)
 # pb.detection - matrix with covariates that effect detection in the locations of detected presences of the opportunistic survey
 ###############################
 
-#.rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
+.rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
 # getting only NA values?
 # pb.occupancy=extract(s.occupancy,pb.loc)
+# extract(s.occupancy)
 # pb.detection=extract(s.detection,pb.loc)
 
 # is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
@@ -325,6 +328,8 @@ pb.occupancy=pb.occupancy[is.complete.pb,]
 # so.occupancy - matrix with covariates that effect occupancy in the locations of PA survey sites
 # so.detection - matrix with covariates that effect detection in the locations of PA survey sites in each survey
 ###############################
+
+#### We need to figure out how they got these values?????
 
 # This need to be csvs or a matrix of variables and their values across the survey area (-1 to 1 values for example) that affect occupancy
 # using csvs from Koshkina paper for now
@@ -447,7 +452,9 @@ printList(pb.fit)
 
 ### Presence-Absence 
 
-Uses a function that fits Mackenzie model.
+Uses a function that fits Mackenzie model. 
+Error in base::rowSums(x, na.rm = na.rm, dims = dims, ...) : 'x' must be numeric
+y.so different number of surveys
 
 ```{r}
 # Analyzing presence-absence data
