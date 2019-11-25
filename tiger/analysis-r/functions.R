@@ -1,11 +1,16 @@
 ###################################################################################################
 ## original code by Robert Dorazio
-## modified by Vira Koshkina
-## Integrated Species Distribution Models: Combining presence-only data and presence-absence data 
- # with imperfect detection
-## utility functions for the file POPA-functions
-## 19/08/2016
+## modified by Mari Roberts and Jess Spencer
+## Integrated Species Distribution Models
+## 11/25/2019
 ###################################################################################################
+
+# print fitted models
+printList <- function(list) {
+  for (item in 1:length(list)) {
+    print(head(list[[item]]))
+  }
+}
 
 #likelihood functions
 # Utility functions
@@ -20,6 +25,7 @@ predict=function(mymodel, X){
 	# psi =1- exp(-lambda*area)
 	return(lambda)
 }
+
 
 #Function that fits IPP model
 pb.ipp=function(X.po, W.po,X.back, W.back){
@@ -327,6 +333,8 @@ negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
 	-(so.pres+so.non.pres)
 
 }
+
+
 
 negLL.pbso = function(param,y.so.pres,y.so, X.po, W.po, X.back, W.back, X.so, W.so )  {
 

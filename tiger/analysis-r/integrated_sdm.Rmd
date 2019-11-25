@@ -52,15 +52,15 @@ shapefile.df <- fortify(sumatra.map)
 # unique(sumatra.map$ID)
 
 # plot shapefile
-map <- ggplot() +
-  geom_path(data = shapefile.df, 
-            aes(x = long, y = lat, group = group),
-            color = 'black', fill = 'white', size = .2)
-
-# change  projection
-map.projected <- map +
-  coord_map()
-print(map.projected)
+# map <- ggplot() +
+#   geom_path(data = shapefile.df, 
+#             aes(x = long, y = lat, group = group),
+#             color = 'black', fill = 'white', size = .2)
+# 
+# # change  projection
+# map.projected <- map +
+#   coord_map()
+# print(map.projected)
 ```
 
 ## Preparing data for the Code
@@ -282,57 +282,72 @@ for (i in w.files) {
 }
 
 # crop the lidar raster using the vector extent
-s.occupancy <- crop(s.occupancy, sumatra.map)
-s.occupancy <- stack(s.occupancy)
-#plot(s.occupancy, main = "Cropped land cover")
+s.occupancy <- crop(s.occupancy, sumatra.map) # Rasterbrick
+s.occupancy <- stack(s.occupancy) # convert to Rasterstack
+plot(s.occupancy)
 
 # crop the lidar raster using the vector extent
-s.detection <- crop(s.detection, sumatra.map)
-s.detection <- stack(s.detection)
-#plot(s.detection, main = "Cropped land cover")
+s.detection <- crop(s.detection, sumatra.map) # Rasterbrick
+s.detection <- stack(s.detection) # convert to Rasterstack
+plot(s.detection)
 
 ###############################
-# pb.detection
-# pb.occupany
+# pb.occupancy - matrix with covariates that effect occupancy in the locations of detected presences of the opportunistic survey
+# pb.detection - matrix with covariates that effect detection in the locations of detected presences of the opportunistic survey
 ###############################
 
-.rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
-pb.occupancy=extract(s.occupancy,pb.loc)
-pb.detection=extract(s.detection,pb.loc)
+#.rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
+# getting only NA values?
+# pb.occupancy=extract(s.occupancy,pb.loc)
+# pb.detection=extract(s.detection,pb.loc)
+
+# is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
+# pb.detection=pb.detection[is.complete.pb,]
+# pb.occupancy=pb.occupancy[is.complete.pb,]
+
+###############################
+# the following code is simulated because the code above is giving NAs for pb.occupancy and pb.detection
+###############################
+
+# 301 rows in this example
+n = 301
+pb.detection <- as.data.frame(rnorm(n,0,1))
+pb.occupancy <- as.data.frame(rnorm(n,0,1))
 
 is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
 pb.detection=pb.detection[is.complete.pb,]
 pb.occupancy=pb.occupancy[is.complete.pb,]
 
 ###############################
-# so.detection
-# so.occupancy
+# so.occupancy - matrix with covariates that effect occupancy in the locations of PA survey sites
+# so.detection - matrix with covariates that effect detection in the locations of PA survey sites in each survey
 ###############################
 
 # This need to be csvs or a matrix of variables and their values across the survey area (-1 to 1 values for example) that affect occupancy
-
+# using csvs from Koshkina paper for now
 so.occupancy = read.csv("so_occupancy.csv")
 
 # This need to be csvs or a matrix of variables and their values across the survey area that affect detection
-
+# using csvs from Koshkina paper for now
 so.detection = read.csv("so_detection.csv")
 
+# Only use complete cases
 print("removing NA")
 is.complete=complete.cases(so.occupancy)&complete.cases(so.detection)&complete.cases(y.so)
-so.occupancy=so.occupancy[is.complete,]# only use complete cases
-so.detection=so.detection[is.complete,]# only use complete cases
-y.so=y.so[is.complete,]# only use complete cases
+so.occupancy=so.occupancy[is.complete,]
+so.detection=so.detection[is.complete,]
+y.so=y.so[is.complete,]
 area.so =pi*0.04
 
-print('removing raster files')
 #removing rasters to free the memory
+print('removing raster files')
 for (i in c(x.files,w.files)) {
 	do.call(remove,list(i))
 }
 remove(is.complete.pb,po,yb.so,po.loc)
 
+#turning rasters into matrix - background, adding column of ones
 print("allocating background")
-#turning rasters into tables - background, adding column of ones
 X.back = cbind(rep(1, ncell(s.occupancy)), values(s.occupancy))
 W.back = cbind(rep(1, ncell(s.detection)), values(s.detection))
 
@@ -341,20 +356,24 @@ tmp=X.back[complete.cases(X.back)&complete.cases(W.back),]
 W.back=W.back[complete.cases(X.back)&complete.cases(W.back),]
 X.back=tmp
 
+# specify the study area
 print("specifying area ")
 area.back = rep((xres(s.occupancy)/1000)*(yres(s.occupancy)/1000), nrow(X.back))# each cell
-
-s.area=area.back*nrow(X.back) #study area
+s.area=area.back*nrow(X.back) 
 
 # adding column of ones - pb locations
 X.pb=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
 W.pb=cbind(rep(1, nrow(as.matrix(pb.detection))), pb.detection)
+```
 
+## Preparing the Data for the Integrated Model
+
+```{r}
 #Preparing Presence-Absence data ------------------------------------------------
 
 #add a column of ones to the pb covariates
 #y.so # matrix of presences and absences (when the species was and wasn't present)
-J.so=ncol(y.so)
+J.so=ncol(y.so) # number of columns
 X.so=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
 W.so = array(dim=c(nrow(as.matrix(pb.detection)), J.so, 3))
 W.so[,,1] = 1
@@ -408,17 +427,39 @@ X.so=cbind(rep(1, nrow(as.matrix(so.occupancy))), so.occupancy)
 W.so = array(dim=c(nrow(as.matrix(so.detection)), J.so, 3))
 W.so[,,1] = 1
 W.so[,,2] = so.detection[,1:2]# if it changes
-# W.so[,,3] = so.detection[,3:4]# if it changes
-# 2. Analising the data ========================================================
+#W.so[,,3] = so.detection[,3:4]# if it changes
+```
 
+## Analyzing Data 
+
+### Presence-Only 
+
+Uses a function that fits IPP model.
+
+```{r}
 #Analyzing Presence-Only data
 pb.fit=pb.ipp(X.pb, W.pb,X.back, W.back)
+printList(pb.fit)
+```
 
+### Presence-Absence 
+
+Uses a function that fits Mackenzie model.
+
+```{r}
 # Analyzing presence-absence data
 so.fit=so.model(X.so,W.so,y.so)
+printList(so.fit)
+```
 
+Uses a function that fits the integrated model.
+
+### Integrated Model
+
+```{r}
 # Analyzing presence-only data AND presence-absence data
 poANDso.fit=pbso.integrated(X.pb, W.pb,X.back, W.back,X.so,W.so,y.so)
+printList(poANDso.fit)
 ```
 
 
