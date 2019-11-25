@@ -18,7 +18,8 @@ requiredPackages = c('raster',
                      'ggplot2',
                      'dplyr',
                      'tidyverse',
-                     'rgbif')
+                     'rgbif',
+                     'tidyr')
 for(p in requiredPackages){
   if(!require(p,character.only = TRUE)) install.packages(p)
   library(p,character.only = TRUE)
@@ -28,37 +29,37 @@ for(p in requiredPackages){
 source("functions.r")
 ```
 
-# Sumatran Grid
+## Sumatran Grid
 
 There are 1921 grid cells for Sumatra, Indonesia.
 
 ```{r message=FALSE, warning=FALSE}
 # import Sumatra shapefile of gridcells used in SO data
 unzip("/Users/mari/statistical_consulting/scl-obs/tiger/data/sumatragridmrgd.zip")
-sumatra_map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
+sumatra.map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
 
 # unzip("/Users/mari/statistical_consulting/scl-obs/tiger/data/IDN_adm.zip")
 # indonesia_map <- readOGR(dsn = ".", layer = "IDN_adm2")
 # import Indonesia administrative regions
 
 # shapefile has to be converted to a dataframe for use in ggplot2
-shapefile_df <- fortify(sumatra_map)
+shapefile.df <- fortify(sumatra.map)
 
 # variable names in map
-# names(sumatra_map)
+# names(sumatra.map)
 # number of unique grid cells
-# unique(sumatra_map$ID)
+# unique(sumatra.map$ID)
 
 # plot shapefile
 map <- ggplot() +
-  geom_path(data = shapefile_df, 
+  geom_path(data = shapefile.df, 
             aes(x = long, y = lat, group = group),
             color = 'black', fill = 'white', size = .2)
 
 # change  projection
-map_projected <- map +
+map.projected <- map +
   coord_map()
-print(map_projected)
+print(map.projected)
 ```
 
 ## Preparing data for the Code
@@ -72,19 +73,48 @@ print(map_projected)
 *so.occupancy* - matrix with covariates that effect occupancy in the locations of PA survey sites
 *so.detection* - matrix with covariates that effect detection in the locations of PA survey sites in each survey
 
-## 1. SITE OCCUPANCY AND PRESENCE-ABSENCE DATA 
+## AD HOC, SITE OCCUPANCY, AND PRESENCE-ABSENCE DATA 
 
 ----------------------------------------------------------------------------
-
-This section expands the dataframe so that there is a row for each time an area is surveyed. For example, if an area is surveyed 5 times, there are 5 rows for it, with the observation==1 on the times where a tiger or tiger signs were seen at the location in question. 
 
 ```{r}
 # set working directory
 setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 
 ########################################
+# Import ad hoc data
+########################################
+
+# read csv of ad hoc data
+ad.hoc.original <- read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv", skip = 1)
+
+########################################
+# Import GBIF data
+########################################
+
+# source("gbif_idigbio_extraction.R") ---- likely need to tweek this instead of using the following.
+#
+# sp.in.GBIF <- occ_search(scientificName = c("Panthera tigris",
+#                                             "Panthera tigris sondaica",
+#                                             "Panthera tigris subsp. sondaica",
+#                                             "Panthera tigris subsp. sumatrae",
+#                                             "Panthera tigris sumatrae"), return='data')
+
+# # Plot to check GBIF data... maybe some point tweeking required
+# gbifmap(sp.in.GBIF, region = "Sumatra") # this function doesn't work amymore...
+#
+# # make spatial point
+# sp.points <- SpatialPoints(cbind(sp.in.GBIF$decimalLongitude,
+#                            sp.in.GBIF$decimalLatitude))
+# # put georeference
+# proj4string(sp.points) <- CRS('+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0')
+# centroid <- c(mean(coordinates(sp.points)[,1]),mean(coordinates(sp.points)[,2]))
+
+########################################
 # Import site occupancy data
 ########################################
+
+# This section expands the dataframe so that there is a row for each time an area is surveyed. For example, if an area is surveyed 5 times, there are 5 rows for it, with the observation==1 on the times where a tiger or tiger signs were seen at the location in question. 
 
 # read csv of SO data
 s.o.original = read.csv("Tiger_observation_entry_9_SS_Observations_SUMATRA.csv")
@@ -149,11 +179,11 @@ y.so = spread(strip.so,survey,observation)
 ########################################
 
 # BBSNP2015 CT data
-tiger_CT_observations <- read.csv("Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
-tiger_CT_entry <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
+tiger.CT.observations <- read.csv("Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
+tiger.CT.entry <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
 
 # merge camera trap entries and observation dataframes by deployment ID
-pb <- merge(tiger_CT_entry, tiger_CT_observations, 
+pb <- merge(tiger.CT.entry, tiger.CT.observations, 
             by.x = "deployment.ID",
             by.y = "deployment.ID")
 
@@ -171,13 +201,13 @@ pb <- pb %>% dplyr::select(deployment.ID,
                     livestock)
 
 # lat/long values only
-pb_latlong <- pb %>% dplyr::select(camera.latitude,
+pb.latlong <- pb %>% dplyr::select(camera.latitude,
                             camera.longitude)
 
 # LeuserCT2013 CT data - missing observation time
-tiger_CT_observations2 <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2.csv")
+tiger.CT.observations2 <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2.csv")
 
-pb2 <- tiger_CT_observations2 %>% dplyr::select(project.ID, 
+pb2 <- tiger.CT.observations2 %>% dplyr::select(project.ID, 
                                          camera.latitude,
                                          camera.longitude,
                                          deployment.date.time,
@@ -187,15 +217,16 @@ pb2 <- tiger_CT_observations2 %>% dplyr::select(project.ID,
                                          small.prey,
                                          livestock)
 
-pb2_latlong <- pb2 %>% dplyr::select(camera.latitude,
+pb2.latlong <- pb2 %>% dplyr::select(camera.latitude,
                               camera.longitude)
 
 # merge two dataframes of camera trap lat/long values
-pb_all <- merge(pb_latlong, pb2_latlong, all.x=TRUE, all.y=TRUE)
-head(pb_all)
+pb.all <- merge(pb.latlong, pb2.latlong, all.x=TRUE, all.y=TRUE)
+head(pb.all)
 
-## spatial points
-pb.loc=SpatialPoints(pb_all)
+# spatial points
+# should be a list of lat long values
+pb.loc=SpatialPoints(pb.all)
 ```
 
 ## Covariates
@@ -205,6 +236,8 @@ pb.loc=SpatialPoints(pb_all)
 setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 
 # data from https://www.diva-gis.org/datadown
+# covariates should be Formal class RasterLayer
+
 # covatiates that effect occupancy 
 # land cover of Indonesia
 x.files=c("IDN_cov.grd")
@@ -215,6 +248,7 @@ x.files=c("IDN_cov.grd")
 w.files=c("IDN_alt.grd")
 
 # s.occupancy - raster with background covatiates that effect occupancy
+# should be a Formal class RasterStack
 for (i in c(x.files,w.files)) {
   do.call('=',list(i, raster(i)))
 }
@@ -227,6 +261,7 @@ for (i in x.files) {
 }
 
 # s.detection - raster with background covariates that effect detection
+# # should be a Formal class RasterStack
 s.detection= raster(get(w.files[1]))
 for (i in w.files) {
   temp=get(i)
@@ -235,63 +270,16 @@ for (i in w.files) {
 }
 
 # crop the lidar raster using the vector extent
-s.occupancy <- crop(s.occupancy, sumatra_map)
+s.occupancy <- crop(s.occupancy, sumatra.map)
 s.occupancy <- stack(s.occupancy)
 #plot(s.occupancy, main = "Cropped land cover")
 
 # crop the lidar raster using the vector extent
-s.detection <- crop(s.detection, sumatra_map)
+s.detection <- crop(s.detection, sumatra.map)
 s.detection <- stack(s.detection)
 #plot(s.detection, main = "Cropped land cover")
 
-# view extents
-extent(s.occupancy)
-extent(sumatra_map)
-```
-
-# 1. Ad Hoc
-
-See if ad hoc data is available.
-
-Will finish code that includes github extraction.
-
-```{r}
-# source("gbif_idigbio_extraction.R") ---- likely need to tweek this instead of using the following.
-# 
-# sp_in_GBIF <- occ_search(scientificName = c("Panthera tigris", 
-#                                             "Panthera tigris sondaica",
-#                                             "Panthera tigris subsp. sondaica",
-#                                             "Panthera tigris subsp. sumatrae",
-#                                             "Panthera tigris sumatrae"), return='data')
-
-# # Plot to check GBIF data... maybe some point tweeking required
-# gbifmap(sp_in_GBIF, region = "Sumatra") # this function doesn't work amymore...
-# 
-# # make spatial point
-# sp_points <- SpatialPoints(cbind(sp_in_GBIF$decimalLongitude, 
-#                            sp_in_GBIF$decimalLatitude))
-# # put georeference
-# proj4string(sp_points) <- CRS('+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0')
-# centroid <- c(mean(coordinates(sp_points)[,1]),mean(coordinates(sp_points)[,2])) 
-```
-
-```{r}
-# proj4string(pb.loc) <- CRS('+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0')
-# centroid <- c(mean(coordinates(pb.loc)[,1]),mean(coordinates(pb.loc)[,2])) 
-# altitude1 <- getData('SRTM', lon=centroid[1], lat=centroid[2])
-# altitude2 <- getData('SRTM', lon=centroid[1], lat=centroid[2]-2) # to get the lower part
-# alt_mosaic <- mosaic(altitude1, altitude2, fun=mean) # unir las dos altitudes
-# # tmin <-     getData('worldclim', var='tmin', res=0.5, lon=centroid[1], lat=centroid[2])
-# # tmax <-     getData('worldclim', var='tmax', res=0.5, lon=centroid[1], lat=centroid[2])
-# # precipit <- getData('worldclim', var='prec', res=0.5, lon=centroid[1], lat=centroid[2])
-# bio_vars <- getData('worldclim', var='bio' , res=0.5, lon=centroid[1], lat=centroid[2])
-```
-
-Extract values from a raster object at the locations of other spatial data. You can use coordinates (points), lines, polygons or an Extent (rectangle) object.
-
-?Error in UseMethod("extract_") : no applicable method for 'extract_' applied to an object of class "c('RasterStack', 'Raster', 'RasterStackBrick', 'BasicRaster')"?
-
-```{r}
+.rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
 pb.occupancy=extract(s.occupancy,pb.loc)
 pb.detection=extract(s.detection,pb.loc)
 
