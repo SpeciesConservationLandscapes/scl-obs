@@ -6,6 +6,8 @@ output: pdf_document
 ---
   
 **Helper Functions and Packages:**
+
+The following code loads packages if they aren't installed on your machine. The functions.r file will also be loaded which contains functions necessary for the model analyses.
   
 ```{r message=FALSE, warning=FALSE}
 # Load packages or install packages if they don't exist
@@ -32,11 +34,11 @@ source("functions.r")
 ## Sumatran Grid Cells
 ----------------------------------------------------------------------------
 
-There are 1921 grid cells for Sumatra, Indonesia.
+There are 1921 grid cells for Sumatra, Indonesia. 
 
 ```{r message=FALSE, warning=FALSE}
 # import Sumatra shapefile of gridcells used in SO data
-unzip("/Users/mari/statistical_consulting/scl-obs/tiger/data/sumatragridmrgd.zip")
+unzip("data/sumatragridmrgd.zip")
 sumatra.map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
 
 # unzip("/Users/mari/statistical_consulting/scl-obs/tiger/data/IDN_adm.zip")
@@ -65,7 +67,6 @@ shapefile.df <- fortify(sumatra.map)
 
 ## Preparing data for the Code
 ----------------------------------------------------------------------------
-  All the data required for this function is stored in a file data.rda
 *s.occupancy* - raster with background covatiates that effect occupancy
 *s.detection* - raster with background covariates that effect detection
 *pb.occupancy* - matrix with covariates that effect occupancy in the locations of detected presences of the opportunistic survey
@@ -74,7 +75,7 @@ shapefile.df <- fortify(sumatra.map)
 *so.occupancy* - matrix with covariates that effect occupancy in the locations of PA survey sites
 *so.detection* - matrix with covariates that effect detection in the locations of PA survey sites in each survey
 
-## AD HOC, SITE OCCUPANCY, AND PRESENCE-ABSENCE DATA 
+## IMPORT DATA: AD HOC, SITE OCCUPANCY, PRESENCE-ABSENCE DATA, COVARIATES  
 ----------------------------------------------------------------------------
 
 ```{r}
@@ -82,7 +83,7 @@ shapefile.df <- fortify(sumatra.map)
 setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 
 ########################################
-# Import ad hoc data
+# Import Ad hoc data
 ########################################
 
 # read csv of ad hoc data
@@ -224,12 +225,12 @@ pb2 <- tiger.CT.observations2 %>% dplyr::select(project.ID,
 pb2.latlong <- pb2 %>% dplyr::select(camera.latitude,
                               camera.longitude)
 
-# merge two dataframes of camera trap lat/long values
+# merge two dataframes of camera trap lat and long values
 pb.all <- merge(pb.latlong, pb2.latlong, all.x=TRUE, all.y=TRUE)
 head(pb.all)
 
 # spatial points
-# should be a list of lat long values
+# should be a list of lat and long values
 pb.loc=SpatialPoints(pb.all)
 ```
 
@@ -239,11 +240,13 @@ pb.loc=SpatialPoints(pb.all)
 Data for Indonesia downloaded from https://www.diva-gis.org/datadown as an exercise. HII and other covariates will be included in the final model.
 
 ```{r}
-# read spatial covariates - only works for gri and grd files...???????
 setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 
-# covariates should be Formal class RasterLayer
+###############################
+# Covariates
+###############################
 
+# covariates should be Formal class RasterLayer
 # covatiates that effect occupancy 
 # land cover of Indonesia
 x.files=c("IDN_cov.grd")
@@ -452,16 +455,19 @@ so.fit=so.model(X.so,W.so,y.so)
 printList(so.fit)
 ```
 
-Uses a function that fits the integrated model.
-
 ### Integrated Model
+
+Uses a function that fits the integrated model.
 
 ```{r}
 # Analyzing presence-only data AND presence-absence data
 poANDso.fit=pbso.integrated(X.pb, W.pb,X.back, W.back,X.so,W.so,y.so)
+
+#### Save model results
+save(pb.fit, so.fit, poANDso.fit, file="model.results.rda")
+
 printList(poANDso.fit)
 ```
-
 
 
 
