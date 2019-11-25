@@ -29,7 +29,8 @@ for(p in requiredPackages){
 source("functions.r")
 ```
 
-## Sumatran Grid
+## Sumatran Grid Cells
+----------------------------------------------------------------------------
 
 There are 1921 grid cells for Sumatra, Indonesia.
 
@@ -63,7 +64,7 @@ print(map.projected)
 ```
 
 ## Preparing data for the Code
---------------------------------------
+----------------------------------------------------------------------------
   All the data required for this function is stored in a file data.rda
 *s.occupancy* - raster with background covatiates that effect occupancy
 *s.detection* - raster with background covariates that effect detection
@@ -74,7 +75,6 @@ print(map.projected)
 *so.detection* - matrix with covariates that effect detection in the locations of PA survey sites in each survey
 
 ## AD HOC, SITE OCCUPANCY, AND PRESENCE-ABSENCE DATA 
-
 ----------------------------------------------------------------------------
 
 ```{r}
@@ -170,6 +170,10 @@ final.filled = setdiff(so.filled_a,reps)
 final.filled$survey_id = cumsum(!duplicated(final.filled[2:4]))
 strip.so = dplyr::select(final.filled,observation,survey,survey_id,grid)
 
+###############################
+# y.so
+###############################
+
 # This next section will take that dataframe and turn it into a matrix of values. Each row will correspond to a survey.  If the survey happened 24 times, then the corresponding row will have 24 columns - either 0 or 1 - to denote whether a tiger was seen or not. The final dataframe is called *y.so*.
 # final site occupancy data
 y.so = spread(strip.so,survey,observation)
@@ -230,12 +234,14 @@ pb.loc=SpatialPoints(pb.all)
 ```
 
 ## Covariates
+----------------------------------------------------------------------------
+
+Data for Indonesia downloaded from https://www.diva-gis.org/datadown as an exercise. HII and other covariates will be included in the final model.
 
 ```{r}
 # read spatial covariates - only works for gri and grd files...???????
 setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 
-# data from https://www.diva-gis.org/datadown
 # covariates should be Formal class RasterLayer
 
 # covatiates that effect occupancy 
@@ -247,8 +253,11 @@ x.files=c("IDN_cov.grd")
 # altitude of Indonesia
 w.files=c("IDN_alt.grd")
 
+###############################
 # s.occupancy - raster with background covatiates that effect occupancy
 # should be a Formal class RasterStack
+###############################
+
 for (i in c(x.files,w.files)) {
   do.call('=',list(i, raster(i)))
 }
@@ -260,8 +269,11 @@ for (i in x.files) {
   s.occupancy = addLayer(s.occupancy, temp)
 }
 
+###############################
 # s.detection - raster with background covariates that effect detection
 # # should be a Formal class RasterStack
+###############################
+
 s.detection= raster(get(w.files[1]))
 for (i in w.files) {
   temp=get(i)
@@ -279,6 +291,11 @@ s.detection <- crop(s.detection, sumatra.map)
 s.detection <- stack(s.detection)
 #plot(s.detection, main = "Cropped land cover")
 
+###############################
+# pb.detection
+# pb.occupany
+###############################
+
 .rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
 pb.occupancy=extract(s.occupancy,pb.loc)
 pb.detection=extract(s.detection,pb.loc)
@@ -287,8 +304,18 @@ is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
 pb.detection=pb.detection[is.complete.pb,]
 pb.occupancy=pb.occupancy[is.complete.pb,]
 
-# so.occupancy = ????????
-# so.detection = ????????
+###############################
+# so.detection
+# so.occupancy
+###############################
+
+# This need to be csvs or a matrix of variables and their values across the survey area (-1 to 1 values for example) that affect occupancy
+
+so.occupancy = read.csv("so_occupancy.csv")
+
+# This need to be csvs or a matrix of variables and their values across the survey area that affect detection
+
+so.detection = read.csv("so_detection.csv")
 
 print("removing NA")
 is.complete=complete.cases(so.occupancy)&complete.cases(so.detection)&complete.cases(y.so)
@@ -304,14 +331,12 @@ for (i in c(x.files,w.files)) {
 }
 remove(is.complete.pb,po,yb.so,po.loc)
 
-
 print("allocating background")
 #turning rasters into tables - background, adding column of ones
 X.back = cbind(rep(1, ncell(s.occupancy)), values(s.occupancy))
 W.back = cbind(rep(1, ncell(s.detection)), values(s.detection))
 
 # remove all NA values
-
 tmp=X.back[complete.cases(X.back)&complete.cases(W.back),]
 W.back=W.back[complete.cases(X.back)&complete.cases(W.back),]
 X.back=tmp
@@ -319,23 +344,22 @@ X.back=tmp
 print("specifying area ")
 area.back = rep((xres(s.occupancy)/1000)*(yres(s.occupancy)/1000), nrow(X.back))# each cell
 
-
 s.area=area.back*nrow(X.back) #study area
 
-# adding column of ones - po locations
-X.pb=cbind(rep(1, nrow(as.matrix(po.occupancy))), po.occupancy)
-W.pb=cbind(rep(1, nrow(as.matrix(po.detection))), po.detection)
+# adding column of ones - pb locations
+X.pb=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
+W.pb=cbind(rep(1, nrow(as.matrix(pb.detection))), pb.detection)
 
 #Preparing Presence-Absence data ------------------------------------------------
 
-#add a column of ones to the PA covariat
+#add a column of ones to the pb covariates
 #y.so # matrix of presences and absences (when the species was and wasn't present)
 J.so=ncol(y.so)
-X.so=cbind(rep(1, nrow(as.matrix(PA.occupancy))), PA.occupancy)
-W.so = array(dim=c(nrow(as.matrix(PA.detection)), J.so, 3))
+X.so=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
+W.so = array(dim=c(nrow(as.matrix(pb.detection)), J.so, 3))
 W.so[,,1] = 1
-W.so[,,2] = PA.detection# if it changes
-W.so[,,3] = PA.detection2# if it changes
+W.so[,,2] = pb.detection# if it changes
+W.so[,,3] = pb.detection# if it changes
 
 #Checking whether occupancy and detection rasters have the same resolution -----
 if(sum(res(s.occupancy)!=res(s.detection)))
