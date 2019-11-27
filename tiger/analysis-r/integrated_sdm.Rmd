@@ -29,7 +29,11 @@ for(p in requiredPackages){
 
 # load functions in separate R file
 source("functions.r")
+```
 
+The following shapefile was provided by the tiger team. The shapefile contains the grid cells of Sumatra, Indonesia. Of these grid cells, 394 were surveyed. Grid cells were surveyed for presences of tigers at varying numbers. Presences and absences of tigers were recorded.
+
+```{r}
 ########################################
 # Sumatran Grid Cells
 ########################################
@@ -75,6 +79,12 @@ print(map.projected)
 
 ## IMPORT DATA: AD HOC, SITE OCCUPANCY, PRESENCE-ABSENCE DATA, COVARIATES  
 ----------------------------------------------------------------------------
+
+The ad.hoc.original data can be ignored for now.
+
+y.so is the final dataframe for the survey data mentioned in the previous section. As you can see, there are 394 rows representing each site that was surveyed. The number of columns that contains a 0 or 1 corresponds to the number of times each site was surveyed. Not every row has the same number of columns with a 0 or 1 since sites were surveyed a different number of times. NA's are in the trailing columns of the matrix.
+
+pb.all represents the camera trap data. Each row of latitude and longitude values represents a tiger presence captured on camera. There are 301 observations in total from two datasets provided by Tim O'Brien.
 
 ```{r}
 # set working directory
@@ -241,7 +251,7 @@ head(pb.all)
 ## Covariates
 ----------------------------------------------------------------------------
 
-Data for Indonesia downloaded from https://www.diva-gis.org/datadown as an exercise. HII and other covariates will be included in the final model. Most current HII? 2005?
+Shapefile data (in gri or grd format) for Indonesia was downloaded from https://www.diva-gis.org/datadown as an exercise. HII and other covariates will be included in the final model. For now, we are using land cover to represent a covariate that affects occcupancy (whether or not a tiger was recorded) and altitude to represent a covariate that affects detection (whether or not someone records a tiger). More than one covariate can be loaded into x.files and w.files.
 
 ```{r}
 setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
@@ -299,7 +309,11 @@ plot(s.occupancy)
 s.detection <- crop(s.detection, sumatra.map) # Rasterbrick
 s.detection <- stack(s.detection) # convert to Rasterstack
 plot(s.detection)
+```
 
+The following code is likely the issue for the error in the final model. When trying to use the extract function, pb.occupancy and pb.detection are only outputting NAs. This could be an issue with the covariate shapefiles used? So, we simulated data for pb.detection and pb.occupancy.
+
+```{r}
 ###############################
 # pb.occupancy - matrix with covariates that effect occupancy in the locations of detected presences of the opportunistic survey
 # pb.detection - matrix with covariates that effect detection in the locations of detected presences of the opportunistic survey
@@ -319,22 +333,23 @@ plot(s.detection)
 # the following code is simulated because the code above is giving NAs for pb.occupancy and pb.detection
 ###############################
 
-# 301 rows in this example
-n = 394
+# 301 rows in this example. When this is changed to 394, it runs. Not sure why?
+n = 301
 pb.detection <- as.data.frame(rnorm(n,0,1))
 pb.occupancy <- as.data.frame(rnorm(n,0,1))
 
+# only include complete cases
 is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
 pb.detection=pb.detection[is.complete.pb,]
 pb.occupancy=pb.occupancy[is.complete.pb,]
 ```
 
+so.occupancy and so.detection were also simulated. It's unclear in the Koshkina paper and code where these values came from. It's possible they were calculated across the survey area?
+
 ```{r}
 # set working directory
 setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 # setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
-
-#### We need to figure out how they got these values?????
 
 ###############################
 # so.occupancy - matrix with covariates that effect occupancy in the locations of PA survey sites
@@ -442,7 +457,7 @@ X.back=tmp
 area.back = rep((xres(s.occupancy)/1000)*(yres(s.occupancy)/1000), nrow(X.back))# each cell
 s.area=area.back*nrow(X.back) #study area
 
-# adding column of ones - po locations
+# adding column of ones - pb locations
 X.pb=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
 W.pb=cbind(rep(1, nrow(as.matrix(pb.detection))), pb.detection)
 
@@ -464,7 +479,9 @@ W.so[,,2] = as.matrix(so.detection[,1:2])# if it changes
 
 ### Presence-Only 
 
-Uses a function that fits IPP model.
+Uses a function that fits IPP model. There appears to be an error in the function: 
+
+Error in eigen(hess) : infinite or missing values in 'x'
 
 ```{r}
 #Analyzing Presence-Only data
@@ -479,6 +496,7 @@ Uses a function that fits Mackenzie model.
 Error in base::rowSums(x, na.rm = na.rm, dims = dims, ...) : 'x' must be numeric
 y.so different number of surveys
 could also be an issue with so.detection and so.occupancy
+Error in fn(par, ...) : unused argument (trace = 6)
 
 ```{r}
 # Analyzing presence-absence data
@@ -491,6 +509,8 @@ printList(so.fit)
 ### Integrated Model
 
 Uses a function that fits the integrated model.
+
+Error in base::rowSums(x, na.rm = na.rm, dims = dims, ...) : 'x' must be numeric
 
 ```{r}
 # Analyzing presence-only data AND presence-absence data
