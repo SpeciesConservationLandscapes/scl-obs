@@ -5,7 +5,7 @@
 ## 11/25/2019
 ###################################################################################################
 
-# print fitted models
+# print fitted models - by Roberts and Spencer
 printList <- function(list) {
   for (item in 1:length(list)) {
     print(head(list[[item]]))
@@ -74,13 +74,15 @@ pb.ipp=function(X.po, W.po,X.back, W.back){
 	return(p)
 }
 
-#Function that fits Mackenzie model
+#Function that fits Mackenzie model - by Roberts and Spencer
 so.model=function(X.so,W.so,y.so){
 
 	beta.names=colnames(X.so)
 	beta.names[1]='beta0'
 	# find sites with at least one detection
-	y.so.pres = y.so[rowSums(y.so)>=1,] #detection/non detection matrix for sites with detection in at least one of the surveys
+	
+	# matrices would turn NAs into 0s.
+	y.so.pres = y.so[rowSums(sapply(y.so,as.numeric))>=1,] #detection/non detection matrix for sites with detection in at least one of the surveys
 
 
 	alpha.names.so=NULL
@@ -96,7 +98,7 @@ so.model=function(X.so,W.so,y.so){
 
 	paramGuess = c(rep(.2, dim(X.so)[2]), rep(.1, dim(W.so)[3]))
 	fit.so = NA
-	fit.so = optim(par=paramGuess, fn=negLL.so, method='BFGS', hessian=TRUE,y.so.pres=y.so.pres,y.so=y.so, X.so=X.so, W.so=W.so)
+	fit.so = optim(par=paramGuess, fn=negLL.so, method='BFGS', hessian=TRUE,trace = 6, y.so.pres=y.so.pres,y.so=y.so, X.so=as.matrix(X.so), W.so=W.so)
 
 	# calculating se with Hessian matrix
 	recipCondNum.so = NA
@@ -287,7 +289,7 @@ FisherInfo.po = function(param) {
 	Hmat
 }
 
-# negative loglikelihood function for Mackenzie model
+# negative loglikelihood function for Mackenzie model - by Roberts and Spencer
 negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
 
 	beta = param[1:dim(X.so)[2]]
@@ -311,12 +313,13 @@ negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
 
 
 	# prob of detection for sites with presence at least in one of the surveys, and with no presence detected
-	p.so.pres=p.so[rowSums(y.so)>=1,]
-	p.so.non.pres=p.so[rowSums(y.so)==0,]
+  # tuen NAs into 0s
+	p.so.pres=p.so[rowSums(sapply(y.so,as.numeric))>=1,]
+	p.so.non.pres=p.so[rowSums(sapply(y.so,as.numeric))==0,]
 
 	# prob of occupancy for sites with presence at least in one of the surveys, and with no presence detected
-	psi.pres=psi[rowSums(y.so)>=1,]
-	psi.non.pres=psi[rowSums(y.so)==0,]
+	psi.pres=psi[rowSums(sapply(y.so,as.numeric))>=1,]
+	psi.non.pres=psi[rowSums(sapply(y.so,as.numeric))==0,]
 
 
 	#If there is only one site with no observed animals R automatically turns p.so.non.pres in a vector while we need it in a form of a matrix with 1 row and J.so (number of surveys rows) for the function rowProds to work

@@ -29,15 +29,13 @@ for(p in requiredPackages){
 
 # load functions in separate R file
 source("functions.r")
-```
 
-## Sumatran Grid Cells
-----------------------------------------------------------------------------
+########################################
+# Sumatran Grid Cells
+########################################
 
-There are 1921 grid cells for Sumatra, Indonesia. 
-
-```{r message=FALSE, warning=FALSE}
 # import Sumatra shapefile of gridcells used in SO data
+setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 unzip("data/sumatragridmrgd.zip")
 sumatra.map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
 
@@ -54,15 +52,15 @@ shapefile.df <- fortify(sumatra.map)
 # unique(sumatra.map$ID)
 
 # plot shapefile
-# map <- ggplot() +
-#   geom_path(data = shapefile.df, 
-#             aes(x = long, y = lat, group = group),
-#             color = 'black', fill = 'white', size = .2)
-# 
-# # change  projection
-# map.projected <- map +
-#   coord_map()
-# print(map.projected)
+map <- ggplot() +
+  geom_path(data = shapefile.df,
+            aes(x = long, y = lat, group = group),
+            color = 'black', fill = 'white', size = .2)
+
+# change  projection
+map.projected <- map +
+  coord_map()
+print(map.projected)
 ```
 
 ## Preparing data for the Code
@@ -81,12 +79,15 @@ shapefile.df <- fortify(sumatra.map)
 ```{r}
 # set working directory
 setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
-
+# setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
 ########################################
 # Import Ad hoc data
 ########################################
 
 # read csv of ad hoc data
+#f = file.choose()
+#ad.hoc.original  = read.csv(f, skip=1)
+#ad.hoc.original = read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv")
 ad.hoc.original <- read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv", skip = 1)
 
 ########################################
@@ -118,6 +119,8 @@ ad.hoc.original <- read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv", skip = 1)
 # This section expands the dataframe so that there is a row for each time an area is surveyed. For example, if an area is surveyed 5 times, there are 5 rows for it, with the observation==1 on the times where a tiger or tiger signs were seen at the location in question. 
 
 # read csv of SO data
+#f = file.choose()
+#s.o.original = read.csv("Tiger_observation_entry_9_SS_Observations_SUMATRA.csv" )
 s.o.original = read.csv("Tiger_observation_entry_9_SS_Observations_SUMATRA.csv")
 
 # rename variables
@@ -238,10 +241,11 @@ head(pb.all)
 ## Covariates
 ----------------------------------------------------------------------------
 
-Data for Indonesia downloaded from https://www.diva-gis.org/datadown as an exercise. HII and other covariates will be included in the final model.
+Data for Indonesia downloaded from https://www.diva-gis.org/datadown as an exercise. HII and other covariates will be included in the final model. Most current HII? 2005?
 
 ```{r}
 setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
+# setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
 
 ###############################
 # Covariates
@@ -301,11 +305,11 @@ plot(s.detection)
 # pb.detection - matrix with covariates that effect detection in the locations of detected presences of the opportunistic survey
 ###############################
 
-.rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
+#.rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
 # getting only NA values?
-# pb.occupancy=extract(s.occupancy,pb.loc)
-# extract(s.occupancy)
-# pb.detection=extract(s.detection,pb.loc)
+ pb.occupancy=raster::extract(x=s.occupancy,y=pb.loc)
+ #raster::extract(s.occupancy)
+ pb.detection=extract(s.detection,pb.loc)
 
 # is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
 # pb.detection=pb.detection[is.complete.pb,]
@@ -323,21 +327,37 @@ pb.occupancy <- as.data.frame(rnorm(n,0,1))
 is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
 pb.detection=pb.detection[is.complete.pb,]
 pb.occupancy=pb.occupancy[is.complete.pb,]
+```
+
+```{r}
+# set working directory
+setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
+# setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
+
+#### We need to figure out how they got these values?????
 
 ###############################
 # so.occupancy - matrix with covariates that effect occupancy in the locations of PA survey sites
 # so.detection - matrix with covariates that effect detection in the locations of PA survey sites in each survey
 ###############################
 
-#### We need to figure out how they got these values?????
-
 # This need to be csvs or a matrix of variables and their values across the survey area (-1 to 1 values for example) that affect occupancy
-# using csvs from Koshkina paper for now
-so.occupancy = read.csv("so_occupancy.csv")
+# so.occupancy = read.csv("so_occupancy.csv") # koshkina csv
+# this should be the same number of sites surveyed = 394, 48 columns
+
+# simulate data
+set.seed(1234)
+cov <- matrix(rnorm(1,0,1), nrow=394, ncol=48)
+so.occupancy = as.data.frame(cov)
 
 # This need to be csvs or a matrix of variables and their values across the survey area that affect detection
-# using csvs from Koshkina paper for now
-so.detection = read.csv("so_detection.csv")
+# so.detection = read.csv("so_detection.csv") # koshkina csv
+# this should be the same number of sites surveyed = 394, 48 columns
+
+# simulate data
+set.seed(1234)
+alt <- matrix(rnorm(1,0,1), nrow=394, ncol=48)
+so.detection =as.data.frame(alt)
 
 # Only use complete cases
 print("removing NA")
@@ -434,8 +454,10 @@ J.so=ncol(y.so)
 X.so=cbind(rep(1, nrow(as.matrix(so.occupancy))), so.occupancy)
 W.so = array(dim=c(nrow(as.matrix(so.detection)), J.so, 3))
 W.so[,,1] = 1
-W.so[,,2] = so.detection[,1:2]# if it changes
-#W.so[,,3] = so.detection[,3:4]# if it changes
+#this changes it to a list
+W.so[,,2] = as.matrix(so.detection[,1:2])# if it changes
+#sometimes this (the line below) runs, sometimes it doesnt 
+# W.so[,,3] = as.matrix(so.detection[,3:4])# if it changes
 ```
 
 ## Analyzing Data 
@@ -446,6 +468,7 @@ Uses a function that fits IPP model.
 
 ```{r}
 #Analyzing Presence-Only data
+#missing values in X
 pb.fit=pb.ipp(X.pb, W.pb,X.back, W.back)
 printList(pb.fit)
 ```
@@ -455,10 +478,13 @@ printList(pb.fit)
 Uses a function that fits Mackenzie model. 
 Error in base::rowSums(x, na.rm = na.rm, dims = dims, ...) : 'x' must be numeric
 y.so different number of surveys
+could also be an issue with so.detection and so.occupancy
 
 ```{r}
 # Analyzing presence-absence data
+#X must be numeric
 so.fit=so.model(X.so,W.so,y.so)
+str(y.so)
 printList(so.fit)
 ```
 
