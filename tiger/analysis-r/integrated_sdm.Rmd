@@ -320,7 +320,7 @@ plot(s.detection)
 ###############################
 
 # 301 rows in this example
-n = 301
+n = 394
 pb.detection <- as.data.frame(rnorm(n,0,1))
 pb.occupancy <- as.data.frame(rnorm(n,0,1))
 
