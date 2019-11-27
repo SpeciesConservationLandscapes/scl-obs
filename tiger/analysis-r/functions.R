@@ -97,7 +97,8 @@ so.model=function(X.so,W.so,y.so){
 
 	paramGuess = c(rep(.2, dim(X.so)[2]), rep(.1, dim(W.so)[3]))
 	fit.so = NA
-	fit.so = optim(par=paramGuess, fn=negLL.so, method='BFGS', hessian=TRUE,trace = 6, y.so.pres=y.so.pres,y.so=y.so, X.so=as.matrix(X.so), W.so=W.so)
+
+	fit.so = optim(par=paramGuess, fn=negLL.so, method='BFGS', hessian=TRUE,control=list(trace=TRUE), y.so.pres=y.so.pres,y.so=y.so, X.so=as.matrix(X.so), W.so=W.so)
 
 	# calculating se with Hessian matrix
 	recipCondNum.so = NA
@@ -292,12 +293,18 @@ FisherInfo.po = function(param) {
 negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
 
 	beta = param[1:dim(X.so)[2]]
+	print("beta")
+	print(str(beta))
 	alpha = param[(dim(X.so)[2]+1):(dim(X.so)[2]+dim(W.so)[3])]
+	print("alpha")
+	print(str(alpha))
 
 	#temp --------------------------
 	area.so=1
 
 	lambda.so = exp(X.so %*% beta)
+	print("lambda")
+	print(str(lambda.so))
 	psi =1- exp(-lambda.so*area.so)
 
 
@@ -305,7 +312,11 @@ negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
 	mean(psi)
 
 	p.so = matrix(nrow=dim(W.so)[1], ncol=J.so)
-
+	print("p.so")
+  print(str(p.so))
+  
+  print("W.so")
+  print(str(W.so))
 	for (j in 1:J.so) {
 		p.so[, j] = expit(as.matrix(W.so[,j,], nrow=dim(W.so)[1]) %*% alpha)
 	}
@@ -316,10 +327,19 @@ negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
 	p.so.pres=p.so[rowSums(sapply(y.so,as.numeric))>=1,]
 	p.so.non.pres=p.so[rowSums(sapply(y.so,as.numeric))==0,]
 
+	print("p.so.pres")
+	print(str(p.so.pres))
+	print("p.so.non.pres")
+	print(str(p.so.non.pres))
+	
 	# prob of occupancy for sites with presence at least in one of the surveys, and with no presence detected
 	psi.pres=psi[rowSums(sapply(y.so,as.numeric))>=1,]
 	psi.non.pres=psi[rowSums(sapply(y.so,as.numeric))==0,]
-
+	
+	print("psi.pres")
+	print(str(psi.pres))
+	print("psi.non.pres")
+	print((psi.non.pres))
 
 	#If there is only one site with no observed animals R automatically turns p.so.non.pres in a vector while we need it in a form of a matrix with 1 row and J.so (number of surveys rows) for the function rowProds to work
 	if (length(p.so.non.pres)==J.so) {dim(p.so.non.pres)=c(1,J.so)}
