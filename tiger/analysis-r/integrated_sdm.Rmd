@@ -82,7 +82,9 @@ print(map.projected)
 
 The ad.hoc.original data can be ignored for now.
 
-y.so is the final dataframe for the survey data mentioned in the previous section. As you can see, there are 394 rows representing each site that was surveyed. The number of columns that contains a 0 or 1 corresponds to the number of times each site was surveyed. Not every row has the same number of columns with a 0 or 1 since sites were surveyed a different number of times. NA's are in the trailing columns of the matrix.
+y.so is the final dataframe for the survey data mentioned in the previous section. As you can see, there are 394 rows representing each site that was surveyed. The number of columns that contains a 0 or 1 corresponds to the number of times each site was surveyed. Not every row has the same number of columns with a 0 or 1 since sites were surveyed a different number of times. NA's are in the trailing columns of the matrix. 
+
+We tried to replace the NA's with 0s because we keep running into problems later...This still didn't fix the issue.
 
 pb.all represents the camera trap data. Each row of latitude and longitude values represents a tiger presence captured on camera. There are 301 observations in total from two datasets provided by Tim O'Brien.
 
