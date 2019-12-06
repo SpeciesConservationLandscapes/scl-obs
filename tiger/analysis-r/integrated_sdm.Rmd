@@ -11,12 +11,13 @@ The following code loads packages if they aren't installed on your machine. The 
   
 ```{r message=FALSE, warning=FALSE}
 # Load packages or install packages if they don't exist
-requiredPackages = c('raster',
+requiredPackages = c('raster', #read shapefiles -- transform to RasterStack *
                      'fields',
                      'mvtnorm',
                      'matrixStats',
+                     'mapproj', #display shapefiles
                      'readr',
-                     'rgdal',
+                     'rgdal',#
                      'ggplot2',
                      'dplyr',
                      'tidyverse',
@@ -31,13 +32,15 @@ for(p in requiredPackages){
 source("functions.r")
 ```
 
-## Sumatran Grid Cells
-----------------------------------------------------------------------------
+The following shapefile was provided by the tiger team. The shapefile contains the grid cells of Sumatra, Indonesia. Of these grid cells, 394 were surveyed. Grid cells were surveyed for presences of tigers at varying numbers. Presences and absences of tigers were recorded.
 
-There are 1921 grid cells for Sumatra, Indonesia. 
+```{r}
+########################################
+# Sumatran Grid Cells
+########################################
 
-```{r message=FALSE, warning=FALSE}
 # import Sumatra shapefile of gridcells used in SO data
+#setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 unzip("data/sumatragridmrgd.zip")
 setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data/sumatragridmrgd")
 #can't get this to work - how is it working for Mari?
@@ -48,8 +51,9 @@ sumatra.map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
 # indonesia_map <- readOGR(dsn = ".", layer = "IDN_adm2")
 # import Indonesia administrative regions
 
+####################################################  BELOW is geographically dependent #
 # shapefile has to be converted to a dataframe for use in ggplot2
-shapefile.df <- fortify(sumatra.map)
+shapefile.df <- fortify(sumatra.map) 
 
 # variable names in map
 # names(sumatra.map)
@@ -57,20 +61,20 @@ shapefile.df <- fortify(sumatra.map)
 # unique(sumatra.map$ID)
 
 # plot shapefile
-# map <- ggplot() +
-#   geom_path(data = shapefile.df, 
-#             aes(x = long, y = lat, group = group),
-#             color = 'black', fill = 'white', size = .2)
-# 
-# # change  projection
-# map.projected <- map +
-#   coord_map()
-# print(map.projected)
+map <- ggplot() +
+  geom_path(data = shapefile.df,
+            aes(x = long, y = lat, group = group),
+            color = 'black', fill = 'white', size = .2)
+
+# change  projection
+map.projected <- map +
+  coord_map()
+print(map.projected)
 ```
 
 ## Preparing data for the Code
 ----------------------------------------------------------------------------
-*s.occupancy* - raster with background covatiates that effect occupancy
+*s.occupancy* - raster with background covatiates that effect occupancy --ex. elevation, human footprint etc.
 *s.detection* - raster with background covariates that effect detection
 *pb.occupancy* - matrix with covariates that effect occupancy in the locations of detected presences of the opportunistic survey
 *pb.detection* - matrix with covariates that effect detection in the locations of detected presences of the opportunistic survey
@@ -81,10 +85,22 @@ shapefile.df <- fortify(sumatra.map)
 ## IMPORT DATA: AD HOC, SITE OCCUPANCY, PRESENCE-ABSENCE DATA, COVARIATES  
 ----------------------------------------------------------------------------
 
+The ad.hoc.original data can be ignored for now.
+
+y.so is the final dataframe for the survey data mentioned in the previous section. As you can see, there are 394 rows representing each site that was surveyed. The number of columns that contains a 0 or 1 corresponds to the number of times each site was surveyed. Not every row has the same number of columns with a 0 or 1 since sites were surveyed a different number of times. NA's are in the trailing columns of the matrix. 
+
+We tried to replace the NA's with 0s because we keep running into problems later...This still didn't fix the issue.
+
+pb.all represents the camera trap data. Each row of latitude and longitude values represents a tiger presence captured on camera. There are 301 observations in total from two datasets provided by Tim O'Brien.
+
 ```{r}
 # set working directory
 #setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
+
+#setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
+# setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
+
 ########################################
 # Import Ad hoc data
 ########################################
@@ -126,7 +142,6 @@ ad.hoc.original <- read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv", skip = 1)
 # read csv of SO data
 #f = file.choose()
 #s.o.original = read.csv("Tiger_observation_entry_9_SS_Observations_SUMATRA.csv" )
-getwd()
 s.o.original = read.csv("Tiger_observation_entry_9_SS_Observations_SUMATRA.csv")
 
 # rename variables
@@ -187,11 +202,17 @@ strip.so = dplyr::select(final.filled,observation,survey,survey_id,grid)
 # This next section will take that dataframe and turn it into a matrix of values. Each row will correspond to a survey.  If the survey happened 24 times, then the corresponding row will have 24 columns - either 0 or 1 - to denote whether a tiger was seen or not. The final dataframe is called *y.so*.
 # final site occupancy data
 y.so = spread(strip.so,survey,observation)
+```
+
+
+
+Importing camera trap data
+```{r}
 
 ########################################
 # Import camera trap data
 ########################################
-
+setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
 # BBSNP2015 CT data
 tiger.CT.observations <- read.csv("Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
 tiger.CT.entry <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
@@ -241,17 +262,24 @@ head(pb.all)
 # spatial points
 # should be a list of lat and long values
 pb.loc=SpatialPoints(pb.all)
+#coordinates(pb.all) = ~ camera.latitude + camera.longitude
 head(pb.all)
+tail(pb.all)
 ```
 
 ## Covariates
 ----------------------------------------------------------------------------
 
-Data for Indonesia downloaded from https://www.diva-gis.org/datadown as an exercise. HII and other covariates will be included in the final model.
+Shapefile data (in gri or grd format) for Indonesia was downloaded from https://www.diva-gis.org/datadown as an exercise. HII and other covariates will be included in the final model. For now, we are using land cover to represent a covariate that affects occcupancy (whether or not a tiger was recorded) and altitude to represent a covariate that affects detection (whether or not someone records a tiger). More than one covariate can be loaded into x.files and w.files.
 
 ```{r}
 #setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
+
+#setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
+# setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
+
+
 ###############################
 # Covariates
 ###############################
@@ -304,20 +332,27 @@ plot(s.occupancy)
 s.detection <- crop(s.detection, sumatra.map) # Rasterbrick
 s.detection <- stack(s.detection) # convert to Rasterstack
 plot(s.detection)
+```
 
+The following code is likely the issue for the error in the final model. When trying to use the extract function, pb.occupancy and pb.detection are only outputting NAs. This could be an issue with the covariate shapefiles used? So, we simulated data for pb.detection and pb.occupancy.
 
-
+```{r}
 
 ###############################
 # pb.occupancy - matrix with covariates that effect occupancy in the locations of detected presences of the opportunistic survey
 # pb.detection - matrix with covariates that effect detection in the locations of detected presences of the opportunistic survey
 ###############################
 
-.rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
+#.rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
 # getting only NA values?
- pb.occupancy=raster::extract(x=s.occupancy,y=pb.loc)
+  #check if units are the same (resolution + coordinate system)
+
+ pb.occupancy=raster::extract(x=s.occupancy,y= pb.loc, rule=2)
  #raster::extract(s.occupancy)
- pb.detection=extract(s.detection,pb.loc)
+ pb.detection=raster::extract(s.detection,pb.loc)
+
+#####SKIP TO line 341
+
 
 # is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
 # pb.detection=pb.detection[is.complete.pb,]
@@ -327,14 +362,32 @@ plot(s.detection)
 # the following code is simulated because the code above is giving NAs for pb.occupancy and pb.detection
 ###############################
 
-# 301 rows in this example
+# 301 rows in this example. When this is changed to 394, it runs. Not sure why?
 n = 301
+set.seed(1234)
 pb.detection <- as.data.frame(rnorm(n,0,1))
 pb.occupancy <- as.data.frame(rnorm(n,0,1))
 
+#trying to match paper with range (-1.3,1.7)
+pb.detection <- as.data.frame(rnorm(n,0,0.5))
+#match paper = range (-2, 1.58)
+pb.occupancy <- as.data.frame(rnorm(n,0,0.6))
+
+# only include complete cases
 is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
 pb.detection=pb.detection[is.complete.pb,]
 pb.occupancy=pb.occupancy[is.complete.pb,]
+summary(pb.occupancy)
+#(pb.occupancy)
+#sum(na.omit(pb.occupancy))
+```
+
+so.occupancy and so.detection were also simulated. It's unclear in the Koshkina paper and code where these values came from. It's possible they were calculated across the survey area?
+
+```{r}
+# set working directory
+#setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
+ setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
 
 ###############################
 # so.occupancy - matrix with covariates that effect occupancy in the locations of PA survey sites
@@ -347,12 +400,22 @@ setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
 #### We need to figure out how they got these values?????
 
 # This need to be csvs or a matrix of variables and their values across the survey area (-1 to 1 values for example) that affect occupancy
-# using csvs from Koshkina paper for now
-so.occupancy = read.csv("so_occupancy.csv")
+# so.occupancy = read.csv("so_occupancy.csv") # koshkina csv
+# this should be the same number of sites surveyed = 394, 48 columns
+
+# simulate data
+set.seed(1234)
+cov <- matrix(rnorm(1,0,1), nrow=394, ncol=48)
+so.occupancy = as.data.frame(cov)
 
 # This need to be csvs or a matrix of variables and their values across the survey area that affect detection
-# using csvs from Koshkina paper for now
-so.detection = read.csv("so_detection.csv")
+# so.detection = read.csv("so_detection.csv") # koshkina csv
+# this should be the same number of sites surveyed = 394, 48 columns
+
+# simulate data
+set.seed(1234)
+alt <- matrix(rnorm(1,0,1), nrow=394, ncol=48)
+so.detection =as.data.frame(alt)
 
 # Only use complete cases
 print("removing NA")
@@ -368,58 +431,11 @@ for (i in c(x.files,w.files)) {
 	do.call(remove,list(i))
 }
 remove(is.complete.pb,po,yb.so,po.loc)
-
-#turning rasters into matrix - background, adding column of ones
-print("allocating background")
-X.back = cbind(rep(1, ncell(s.occupancy)), values(s.occupancy))
-W.back = cbind(rep(1, ncell(s.detection)), values(s.detection))
-
-# remove all NA values
-tmp=X.back[complete.cases(X.back)&complete.cases(W.back),]
-W.back=W.back[complete.cases(X.back)&complete.cases(W.back),]
-X.back=tmp
-
-# specify the study area
-print("specifying area ")
-area.back = rep((xres(s.occupancy)/1000)*(yres(s.occupancy)/1000), nrow(X.back))# each cell
-s.area=area.back*nrow(X.back) 
-
-# adding column of ones - pb locations
-X.pb=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
-W.pb=cbind(rep(1, nrow(as.matrix(pb.detection))), pb.detection)
 ```
 
 ## Preparing the Data for the Integrated Model
 
 ```{r}
-#Preparing Presence-Absence data ------------------------------------------------
-
-#add a column of ones to the pb covariates
-#y.so # matrix of presences and absences (when the species was and wasn't present)
-J.so=ncol(y.so) # number of columns
-X.so=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
-W.so = array(dim=c(nrow(as.matrix(pb.detection)), J.so, 3))
-W.so[,,1] = 1
-W.so[,,2] = pb.detection# if it changes
-W.so[,,3] = pb.detection# if it changes
-
-#Checking whether occupancy and detection rasters have the same resolution -----
-if(sum(res(s.occupancy)!=res(s.detection)))
-	stop("Occupancy and detection raster layers have different resolution")
-
-if(ncell(s.occupancy)!=ncell(s.detection))
-	stop("Occupancy and detection have different number of cells")
-
-# # Plotting covariates that drive occupancy and detection in PO
-# ppi = 300
-# png('occupancy-covariates.png', width=9*ppi, height=3*ppi, res=ppi)
-# plot(s.occupancy)
-# dev.off()
-# 
-# png('PO-detection -covariates.png', width=9*ppi, height=3*ppi, res=ppi)
-# plot(s.detection)
-# dev.off()
-
 # 1. Preparing the data ========================================================
 #Preparing Presence-Only data ------------------------------------------------
 
@@ -437,9 +453,9 @@ X.back=tmp
 area.back = rep((xres(s.occupancy)/1000)*(yres(s.occupancy)/1000), nrow(X.back))# each cell
 s.area=area.back*nrow(X.back) #study area
 
-# adding column of ones - po locations
-X.pb=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
-W.pb=cbind(rep(1, nrow(as.matrix(pb.detection))), pb.detection)
+# adding column of ones - pb locations
+X.po=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
+W.po=cbind(rep(1, nrow(as.matrix(pb.detection))), pb.detection)
 
 #Preparing Presence-Absence data ------------------------------------------------
 
@@ -453,19 +469,32 @@ W.so[,,1] = 1
 W.so[,,2] = as.matrix(so.detection[,1:2])# if it changes
 #sometimes this (the line below) runs, sometimes it doesnt 
 W.so[,,3] = as.matrix(so.detection[,3:4])# if it changes
+
+# W.so[,,2] = as.matrix(so.detection[,1:2])# if it changes
+#W.so[,,2] = so.detection# if it changes
+#sometimes this (the line below) runs, sometimes it doesnt 
+# W.so[,,3] = as.matrix(so.detection[,3:4])# if it changes
+
 ```
 
 ## Analyzing Data 
 
 ### Presence-Only 
 
-Uses a function that fits IPP model.
+Uses a function that fits IPP model. There appears to be an error in the function: 
+
+Error in eigen(hess) : infinite or missing values in 'x'
 
 ```{r}
 #Analyzing Presence-Only data
 #missing values in X
 
-pb.fit=pb.ipp(X.pb, W.pb,X.back, W.back)
+#which of these is correct?
+
+#pb.fit=pb.ipp(X.pb, W.pb,X.back, W.back)
+
+pb.fit=pb.ipp(X.po, W.po,X.back, W.back)
+
 printList(pb.fit)
 ```
 
@@ -474,6 +503,8 @@ printList(pb.fit)
 Uses a function that fits Mackenzie model. 
 Error in base::rowSums(x, na.rm = na.rm, dims = dims, ...) : 'x' must be numeric
 y.so different number of surveys
+could also be an issue with so.detection and so.occupancy
+Error in fn(par, ...) : unused argument (trace = 6)
 
 ```{r}
 # Analyzing presence-absence data
@@ -487,25 +518,14 @@ printList(so.fit)
 
 Uses a function that fits the integrated model.
 
+Error in base::rowSums(x, na.rm = na.rm, dims = dims, ...) : 'x' must be numeric
+
 ```{r}
 # Analyzing presence-only data AND presence-absence data
-poANDso.fit=pbso.integrated(X.pb, W.pb,X.back, W.back,X.so,W.so,y.so)
+poANDso.fit=pbso.integrated(X.po, W.pb,X.back, W.back,X.so,W.so,y.so)
 
 #### Save model results
 save(pb.fit, so.fit, poANDso.fit, file="model.results.rda")
 
 printList(poANDso.fit)
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
