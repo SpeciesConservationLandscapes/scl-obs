@@ -54,6 +54,8 @@ The following shapefile was provided by the SCL Team. The shapefile contains the
 ########################################
 
 # import Sumatra shapefile of gridcells 
+
+# set working directory
 setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 unzip("sumatragridmrgd.zip")
 sumatra.map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
@@ -147,7 +149,7 @@ s.o.original = rename(s.o.original,
 # populated the 0's 
 a = s.o.original %>% 
   filter(observation == 0) %>% 
-  crossing(survey =(1:46)) %>% 
+  crossing(survey =(1:98)) %>% 
   mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>% 
   na.omit()
 
@@ -212,10 +214,8 @@ setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 tiger.CT.observations <- read.csv("Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
 tiger.CT.entry <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
 
-# merge camera trap entries and observation dataframes by deployment ID
-ct <- merge(tiger.CT.entry, tiger.CT.observations, 
-            by.x = "deployment.ID",
-            by.y = "deployment.ID")
+# includes grids that had CT but no tiger was observed
+ct <- plyr::join(tiger.CT.entry, tiger.CT.observations, by = "deployment.ID", type = "full")
 
 # create a variable for the number of replicates per survey (one a day)
 
@@ -230,7 +230,61 @@ ct <- ct %>% mutate(# number of days between pick up and deployment
                                              format="%Y/%m/%d")-
                                      as.Date(as.character(observation.date.time), 
                                              format="%m/%d/%Y"))
-              select(camera.latitude, camera.longitude, num.surveys, replicate)
+              # %>% select(camera.latitude, camera.longitude, num.surveys, replicate)
+
+# remove camera locations where the camera was lost
+ct <- ct %>% filter(pickup.date.time != "NONE")
+
+# add 0s for where a camera wasn't observed (listed as NAs)
+ct$observation <- 0
+ct <- ct %>% mutate(observation = ifelse(observation.date.time != 1,1,0))
+
+a = ct %>% 
+  crossing(survey =(1:154)) %>% 
+  mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>% 
+  na.omit()
+
+a = dplyr::select(a,-c(good.survey))
+
+# expand the 1's
+b = ct %>% 
+  crossing(survey =(1:154)) %>% 
+  mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>%
+  na.omit() %>%
+  mutate(true.observation = ifelse(survey!=replicate, 0, 1))
+
+b = dplyr::select(b,-c(good.survey)) 
+
+# combine the two
+so.filled =rbind(a,b)
+so.filled_a = 
+  dplyr::select(so.filled,-c(replicate)) %>%    
+  distinct(survey,
+           .keep_all = T)
+
+#find the overlapping observations
+onlyOnes = filter(so.filled_a, observation ==1)
+onlyZs = filter(so.filled_a, observation == 0)
+reps = plyr::match_df(onlyZs, 
+                      onlyOnes,
+                      on = c("survey",
+                             "start.date",
+                             "grid"))
+
+# subtract overlapping observations from the expanded set
+final.filled = setdiff(so.filled_a,reps)
+
+final.filled$survey_id = cumsum(!duplicated(final.filled[2:4]))
+strip.so = dplyr::select(final.filled,observation,survey,survey_id,grid)
+
+###############################
+# y.so
+###############################
+
+# This next section will take that dataframe and turn it into a matrix of values. Each row will correspond to a survey.  If the survey happened 24 times, then the corresponding row will have 24 columns - either 0 or 1 - to denote whether a tiger was seen or not. The final dataframe is called *y.so*.
+# final site occupancy data
+y.so = spread(strip.so,survey,observation)
+View(y.so)
 ```
 
 The following code is likely the issue for the error in the final model. When trying to use the extract function, pb.occupancy and pb.detection are only outputting NAs. This could be an issue with the covariate shapefiles used? So, we simulated data for pb.detection and pb.occupancy.
