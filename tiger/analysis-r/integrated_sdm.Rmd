@@ -55,6 +55,11 @@ sumatra.map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
 # shapefile has to be converted to a dataframe for use in ggplot2
 shapefile.df <- fortify(sumatra.map) 
 
+```
+
+Optional Plotting and Check on Names and Grid Cells:
+
+```{r}
 # variable names in map
 # names(sumatra.map)
 # number of unique grid cells
@@ -74,6 +79,8 @@ print(map.projected)
 
 ## Preparing data for the Code
 ----------------------------------------------------------------------------
+The following are the required variables for the code given by Koshkina:
+
 *s.occupancy* - raster with background covatiates that effect occupancy --ex. elevation, human footprint etc.
 *s.detection* - raster with background covariates that effect detection
 *pb.occupancy* - matrix with covariates that effect occupancy in the locations of detected presences of the opportunistic survey
@@ -97,9 +104,6 @@ pb.all represents the camera trap data. Each row of latitude and longitude value
 # set working directory
 #setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
-
-#setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
-# setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
 
 ########################################
 # Import Ad hoc data
@@ -368,10 +372,6 @@ set.seed(1234)
 pb.detection <- as.data.frame(rnorm(n,0,1))
 pb.occupancy <- as.data.frame(rnorm(n,0,1))
 
-#trying to match paper with range (-1.3,1.7)
-pb.detection <- as.data.frame(rnorm(n,0,0.5))
-#match paper = range (-2, 1.58)
-pb.occupancy <- as.data.frame(rnorm(n,0,0.6))
 
 # only include complete cases
 is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)

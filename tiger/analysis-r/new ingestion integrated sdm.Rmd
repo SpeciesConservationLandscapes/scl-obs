@@ -267,17 +267,27 @@ head(pb.all)
 tail(pb.all)
 ```
 
-## Covariates
+## Covariates - Given in Ingestion by Kim Fisher
 ----------------------------------------------------------------------------
 
-Shapefile data (in gri or grd format) for Indonesia was downloaded from https://www.diva-gis.org/datadown as an exercise. HII and other covariates will be included in the final model. For now, we are using land cover to represent a covariate that affects occcupancy (whether or not a tiger was recorded) and altitude to represent a covariate that affects detection (whether or not someone records a tiger). More than one covariate can be loaded into x.files and w.files.
+Covariates Given:
+- 1 shapefile each for HII and SRTM (DEM) for BBSNP CT deployments
+- 1 shapefile each for HII and SRTM (DEM) for Leuser CT deployments
+- *1 csv for SS grid cell observations with both HII and SRTM values for the cell centroid of the observation*
+- *1 csv for ad hoc grid cell observations with both HII and SRTM values for the cell centroid of the observation*
+- 1 shapefile each for HII and SRTM (DEM) for 1000 points placed randomly at least 100m apart within the "WibiPuspa" polygons
+
+* used to start
+
+Can't figure out how to read in QGIS shapefiles.  Will ask Charles tonight
 
 ```{r}
 #setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
-setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
+setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data/prob")
 
-#setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
-# setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
+# Test for file extensions
+x.files = c("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_hii.dbf")
+w.files = c("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_hii.dbf")
 
 
 ###############################
@@ -287,22 +297,24 @@ setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
 # covariates should be Formal class RasterLayer
 # covatiates that effect occupancy 
 # land cover of Indonesia
-x.files=c("IDN_cov.grd")
+#x.files=c("IDN_cov.grd")
 
 # data from https://www.diva-gis.org/datadown
 # covariates should be Formal class RasterLayer
 # covariates that effect detection 
 # altitude of Indonesia
-w.files=c("IDN_alt.grd")
+#w.files=c("IDN_alt.grd")
 
 ###############################
 # s.occupancy - raster with background covatiates that effect occupancy
 # should be a Formal class RasterStack
 ###############################
 
-for (i in c(x.files,w.files)) {
-  do.call('=',list(i, raster(i)))
-}
+#for (i in c(x.files,w.files)) {
+#  do.call('=',list(i, raster(i)))
+#}
+getwd()
+raster(file.choose())
 s.occupancy = raster(get(x.files[1]))
 
 for (i in x.files) {
@@ -311,6 +323,10 @@ for (i in x.files) {
   s.occupancy = addLayer(s.occupancy, temp)
 }
 
+getwd()
+```
+
+```{r}
 ###############################
 # s.detection - raster with background covariates that effect detection
 # # should be a Formal class RasterStack

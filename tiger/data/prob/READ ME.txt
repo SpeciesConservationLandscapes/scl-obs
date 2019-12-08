@@ -1,0 +1,9 @@
+This folder includes:
+
+- 1 shapefile each for HII and SRTM (DEM) for BBSNP CT deployments
+- 1 shapefile each for HII and SRTM (DEM) for Leuser CT deployments
+- *1 csv for SS grid cell observations with both HII and SRTM values for the cell centroid of the observation
+- *1 csv for ad hoc grid cell observations with both HII and SRTM values for the cell centroid of the observation
+- 1 shapefile each for HII and SRTM (DEM) for 1000 points placed randomly at least 100m apart within the "WibiPuspa" polygons
+
+* used to start
