@@ -4,25 +4,27 @@ author: "Mari Roberts and Jessica Spencer"
 date: "10/31/2019"
 output: pdf_document
 ---
-  
+
+# Set up
+
 **Helper Functions and Packages:**
 
-The following code loads packages if they aren't installed on your machine. The functions.r file will also be loaded which contains functions necessary for the model analyses.
+The following code loads packages if they aren't installed on your machine. The functions.R file will also be loaded which contains functions necessary for the model (modified from the Koshkina paper).
   
 ```{r message=FALSE, warning=FALSE}
 # Load packages or install packages if they don't exist
 requiredPackages = c('raster', #read shapefiles -- transform to RasterStack *
                      'fields',
                      'mvtnorm',
-                     'matrixStats',
-                     'mapproj', #display shapefiles
-                     'readr',
-                     'rgdal',#
-                     'ggplot2',
-                     'dplyr',
+                     'matrixStats', # matrix functions
+                     'readr', # read files
+                     'rgdal', 
+                     'ggplot2', # visualization
+                     'dplyr', # data manipularion
                      'tidyverse',
-                     'rgbif',
-                     'tidyr')
+                     'rgbif', # import ad hoc data from GBIF
+                     'tidyr' # data tidying
+                     ) 
 for(p in requiredPackages){
   if(!require(p,character.only = TRUE)) install.packages(p)
   library(p,character.only = TRUE)
@@ -32,7 +34,19 @@ for(p in requiredPackages){
 source("functions.r")
 ```
 
-The following shapefile was provided by the tiger team. The shapefile contains the grid cells of Sumatra, Indonesia. Of these grid cells, 394 were surveyed. Grid cells were surveyed for presences of tigers at varying numbers. Presences and absences of tigers were recorded.
+## Preparing data for the Code
+----------------------------------------------------------------------------
+*s.occupancy* - raster with background covatiates that effect occupancy
+*s.detection* - raster with background covariates that effect detection
+*pb.occupancy* - matrix with covariates that effect occupancy in the locations of detected presences of the opportunistic survey
+*pb.detection* - matrix with covariates that effect detection in the locations of detected presences of the opportunistic survey
+*y.so* - matrix of detection/non detection of the PA surveys
+*so.occupancy* - matrix with covariates that effect occupancy in the locations of PA survey sites
+*so.detection* - matrix with covariates that effect detection in the locations of PA survey sites in each survey
+
+## Shapefiles
+
+The following shapefile was provided by the SCL Team. The shapefile contains the grid cells of Sumatra, Indonesia. Of these grid cells, 394 were surveyed. Grid cells were surveyed for presences of tigers. Presences and absences of tigers were recorded for each survey replicate.
 
 ```{r}
 ########################################
@@ -44,12 +58,17 @@ The following shapefile was provided by the tiger team. The shapefile contains t
 unzip("data/sumatragridmrgd.zip")
 setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data/sumatragridmrgd")
 #can't get this to work - how is it working for Mari?
-getwd()
+
+#Mari's Directory
+  # import Sumatra shapefile of gridcells 
+  #setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
+  #unzip("sumatragridmrgd.zip")
+
 sumatra.map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
 
-# unzip("/Users/mari/statistical_consulting/scl-obs/tiger/data/IDN_adm.zip")
-# indonesia_map <- readOGR(dsn = ".", layer = "IDN_adm2")
-# import Indonesia administrative regions
+########################################
+# Shapefiles of Covariates
+########################################
 
 ####################################################  BELOW is geographically dependent #
 # shapefile has to be converted to a dataframe for use in ggplot2
@@ -65,16 +84,30 @@ Optional Plotting and Check on Names and Grid Cells:
 # number of unique grid cells
 # unique(sumatra.map$ID)
 
-# plot shapefile
-map <- ggplot() +
-  geom_path(data = shapefile.df,
-            aes(x = long, y = lat, group = group),
-            color = 'black', fill = 'white', size = .2)
+# prob.zip provided by Kim Fischer
+#folder <- "/Users/mari/statistical_consulting/scl-obs/tiger/data/prob/"
+folder <- "~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data/prob/"
+# # create list of all .shp files in folder (case of "shp" matters)
+filenames <- list.files(path=folder, pattern=".*shp")
 
-# change  projection
-map.projected <- map +
-  coord_map()
-print(map.projected)
+# read in each shp file
+for (i in 1:length(filenames)){
+  assign(filenames[i], rgdal::readOGR(paste(folder, filenames[i], sep=''))
+  # figure out how to raster in this loop?
+  )}
+
+# convert to raster layer
+ct.hii <- raster(Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_hii.shp)
+ct.srtm<-raster(Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_srtm.shp)
+ct.hii.Leuser<-raster(Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2_hii.shp)
+ct.srtm.Leuser<-raster(Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2_srtm.shp)
+WibiPuspa_1000pts_hii.shp<-raster(WibiPuspa_1000pts_hii.shp)
+WibiPuspa_1000pts_srtm.shp<-raster(WibiPuspa_1000pts_srtm.shp)
+
+s.detection <- crop(ct.hii, sumatra.map) # Rasterbrick
+s.detection <- stack(s.detection) # convert to Rasterstack
+plot(s.detection)
+
 ```
 
 ## Preparing data for the Code
@@ -88,11 +121,11 @@ The following are the required variables for the code given by Koshkina:
 *y.so* - matrix of detection/non detection of the PA surveys
 *so.occupancy* - matrix with covariates that effect occupancy in the locations of PA survey sites
 *so.detection* - matrix with covariates that effect detection in the locations of PA survey sites in each survey
+=======
+
 
 ## IMPORT DATA: AD HOC, SITE OCCUPANCY, PRESENCE-ABSENCE DATA, COVARIATES  
 ----------------------------------------------------------------------------
-
-The ad.hoc.original data can be ignored for now.
 
 y.so is the final dataframe for the survey data mentioned in the previous section. As you can see, there are 394 rows representing each site that was surveyed. The number of columns that contains a 0 or 1 corresponds to the number of times each site was surveyed. Not every row has the same number of columns with a 0 or 1 since sites were surveyed a different number of times. NA's are in the trailing columns of the matrix. 
 
@@ -100,8 +133,13 @@ We tried to replace the NA's with 0s because we keep running into problems later
 
 pb.all represents the camera trap data. Each row of latitude and longitude values represents a tiger presence captured on camera. There are 301 observations in total from two datasets provided by Tim O'Brien.
 
+**Ad hoc data:**
+
+The following ad hoc data only has the grid label, no latitude or longitude values.
+
 ```{r}
 # set working directory
+
 #setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
 
@@ -110,39 +148,30 @@ setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
 ########################################
 
 # read csv of ad hoc data
-#f = file.choose()
-#ad.hoc.original  = read.csv(f, skip=1)
-#ad.hoc.original = read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv")
 ad.hoc.original <- read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv", skip = 1)
+ad.hoc.data <- ad.hoc.original %>% select(cell.label,
+                                          observation.date,
+                                          observation = Report)
+```
 
+
+```{r}
 ########################################
 # Import GBIF data
 ########################################
+# source("gbif_idigbio_extraction.R") - needs to be checked
+```
 
-# source("gbif_idigbio_extraction.R") ---- likely need to tweek this instead of using the following.
-#
-# sp.in.GBIF <- occ_search(scientificName = c("Panthera tigris",
-#                                             "Panthera tigris sondaica",
-#                                             "Panthera tigris subsp. sondaica",
-#                                             "Panthera tigris subsp. sumatrae",
-#                                             "Panthera tigris sumatrae"), return='data')
-
-# # Plot to check GBIF data... maybe some point tweeking required
-# gbifmap(sp.in.GBIF, region = "Sumatra") # this function doesn't work amymore...
-#
-# # make spatial point
-# sp.points <- SpatialPoints(cbind(sp.in.GBIF$decimalLongitude,
-#                            sp.in.GBIF$decimalLatitude))
-# # put georeference
-# proj4string(sp.points) <- CRS('+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0')
-# centroid <- c(mean(coordinates(sp.points)[,1]),mean(coordinates(sp.points)[,2]))
-
+```{r}
 ########################################
 # Import site occupancy data
 ########################################
 
 # This section expands the dataframe so that there is a row for each time an area is surveyed. For example, if an area is surveyed 5 times, there are 5 rows for it, with the observation==1 on the times where a tiger or tiger signs were seen at the location in question. 
 
+# set working directory
+#setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
+setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
 # read csv of SO data
 #f = file.choose()
 #s.o.original = read.csv("Tiger_observation_entry_9_SS_Observations_SUMATRA.csv" )
@@ -154,51 +183,64 @@ s.o.original = rename(s.o.original,
                       grid = grid.cell.label, 
                       replicate = replicate..)
 
-# populated the 0's 
+s.o.original = s.o.original %>% select(-survey.id) #same on every column
+
+#unique id on grid cel & replicate number
+s.o.original$id.survey = cumsum(!duplicated(s.o.original[2:4])) 
+
+##############################################################
+## THE IDEA:
+##   - create a bunch of new rows, each row with a 0 or 1 for observed not observed
+##   -  flip it to wide format
+###############################################################
+
+max(s.o.original$num.surveys) #98
+
+# Take all the surveys with NO signs
+# create new row for each survey that took 
 a = s.o.original %>% 
   filter(observation == 0) %>% 
-  crossing(survey =(1:46)) %>% 
+  crossing(survey =(1:98)) %>% #max number of surveys done
   mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>% 
   na.omit()
-
 a = dplyr::select(a,-c(good.survey))
+
+```
+
+```{r}
 
 # expand the 1's
 b = s.o.original %>% 
   filter(observation == 1) %>% 
-  crossing(survey =(1:46)) %>% 
+  select(-observation) %>% 
+  crossing(survey =(1:98)) %>% 
   mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>%
   na.omit() %>%
-  mutate(true.observation = ifelse(survey!=replicate, 0, 1))
+  mutate(observation = ifelse(survey!=replicate, 0, 1))
 
-b = dplyr::select(b,-c(good.survey,observation)) %>% 
-  rename(observation = true.observation)
+b = dplyr::select(b,-c(good.survey)) 
+View(s.o.original)
 
 # combine the two
 so.filled =rbind(a,b)
 so.filled_a = 
   dplyr::select(so.filled,-c(replicate)) %>%    
   distinct(survey,
-           grid,
-           start.date,
            observation,
+           id.survey,
            .keep_all = T)
 
 #find the overlapping observations
 onlyOnes = filter(so.filled_a, observation ==1)
 onlyZs = filter(so.filled_a, observation == 0)
-reps = plyr::match_df(onlyZs, 
-                      onlyOnes,
-                      on = c("survey",
-                             "start.date",
-                             "grid"))
 
+reps = plyr::match_df( 
+                      onlyZs,onlyOnes,
+                      on = c("id.survey","survey"))
 # subtract overlapping observations from the expanded set
 final.filled = setdiff(so.filled_a,reps)
-
-final.filled$survey_id = cumsum(!duplicated(final.filled[2:4]))
-strip.so = dplyr::select(final.filled,observation,survey,survey_id,grid)
-
+#final.filled$survey_id = cumsum(!duplicated(final.filled[2:4]))
+strip.so = dplyr::select(final.filled,observation,survey,grid, id.survey)
 ###############################
 # y.so
 ###############################
@@ -206,23 +248,24 @@ strip.so = dplyr::select(final.filled,observation,survey,survey_id,grid)
 # This next section will take that dataframe and turn it into a matrix of values. Each row will correspond to a survey.  If the survey happened 24 times, then the corresponding row will have 24 columns - either 0 or 1 - to denote whether a tiger was seen or not. The final dataframe is called *y.so*.
 # final site occupancy data
 y.so = spread(strip.so,survey,observation)
+View(y.so)
 ```
 
 
-
-Importing camera trap data
 ```{r}
-
 ########################################
 # Import camera trap data
 ########################################
+
 setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
+
 # BBSNP2015 CT data
+# Leuser data doesn't have observation date
 tiger.CT.observations <- read.csv("Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
 tiger.CT.entry <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
 
 # merge camera trap entries and observation dataframes by deployment ID
-pb <- merge(tiger.CT.entry, tiger.CT.observations, 
+ct <- merge(tiger.CT.entry, tiger.CT.observations, 
             by.x = "deployment.ID",
             by.y = "deployment.ID")
 
@@ -336,6 +379,22 @@ plot(s.occupancy)
 s.detection <- crop(s.detection, sumatra.map) # Rasterbrick
 s.detection <- stack(s.detection) # convert to Rasterstack
 plot(s.detection)
+
+# create a variable for the number of replicates per survey (one a day)
+
+# create new variables
+ct <- ct %>% mutate(# number of days between pick up and deployment
+                    num.surveys = as.Date(as.character(pickup.date.time), 
+                                             format="%Y/%m/%d")-
+                                     as.Date(as.character(deployment.date.time), 
+                                             format="%Y/%m/%d"),
+                    # the day that the tiger was observed
+                    replicate = as.Date(as.character(pickup.date.time), 
+                                             format="%Y/%m/%d")-
+                                     as.Date(as.character(observation.date.time), 
+                                             format="%m/%d/%Y"))
+              select(camera.latitude, camera.longitude, num.surveys, replicate)
+
 ```
 
 The following code is likely the issue for the error in the final model. When trying to use the extract function, pb.occupancy and pb.detection are only outputting NAs. This could be an issue with the covariate shapefiles used? So, we simulated data for pb.detection and pb.occupancy.
@@ -343,20 +402,20 @@ The following code is likely the issue for the error in the final model. When tr
 ```{r}
 
 ###############################
-# pb.occupancy - matrix with covariates that effect occupancy in the locations of detected presences of the opportunistic survey
-# pb.detection - matrix with covariates that effect detection in the locations of detected presences of the opportunistic survey
+# pb.occupancy - matrix with covariates that effect occupancy in the locations of detected presences of the camera trap - should be ad hoc
+# pb.detection - matrix with covariates that effect detection in the locations of detected presences of the camera trap - should be ad hoc
 ###############################
 
-#.rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
+.rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
 # getting only NA values?
-  #check if units are the same (resolution + coordinate system)
 
- pb.occupancy=raster::extract(x=s.occupancy,y= pb.loc, rule=2)
+pb.occupancy=raster::extract(x=s.occupancy,y=pb.loc)
  #raster::extract(s.occupancy)
- pb.detection=raster::extract(s.detection,pb.loc)
+pb.detection=extract(s.detection,pb.loc)
+ 
+extract(s.detection)
 
-#####SKIP TO line 341
-
+ #####SKIP TO line 341
 
 # is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
 # pb.detection=pb.detection[is.complete.pb,]
@@ -366,8 +425,8 @@ The following code is likely the issue for the error in the final model. When tr
 # the following code is simulated because the code above is giving NAs for pb.occupancy and pb.detection
 ###############################
 
-# 301 rows in this example. When this is changed to 394, it runs. Not sure why?
-n = 301
+# 394 rows in this example. When this is changed to 394, it runs. Not sure why?
+n = 394
 set.seed(1234)
 pb.detection <- as.data.frame(rnorm(n,0,1))
 pb.occupancy <- as.data.frame(rnorm(n,0,1))
@@ -384,13 +443,15 @@ summary(pb.occupancy)
 
 so.occupancy and so.detection were also simulated. It's unclear in the Koshkina paper and code where these values came from. It's possible they were calculated across the survey area?
 
+zscore
+
 ```{r}
 # set working directory
 #setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
  setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
 
 ###############################
-# so.occupancy - matrix with covariates that effect occupancy in the locations of PA survey sites
+# so.occupancy - matrix with covariates that effect occupancy in the locations of presence-absence survey sites
 # so.detection - matrix with covariates that effect detection in the locations of PA survey sites in each survey
 ###############################
 ```
@@ -400,20 +461,21 @@ setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
 #### We need to figure out how they got these values?????
 
 # This need to be csvs or a matrix of variables and their values across the survey area (-1 to 1 values for example) that affect occupancy
-# so.occupancy = read.csv("so_occupancy.csv") # koshkina csv
+so.occupancy.koshkina = read.csv("so_occupancy.csv") # koshkina csv
+ybso <- read.csv("yb-so.csv")
 # this should be the same number of sites surveyed = 394, 48 columns
 
 # simulate data
 set.seed(1234)
-cov <- matrix(rnorm(1,0,1), nrow=394, ncol=48)
+cov <- matrix(rnorm(18912,0,1), nrow=394, ncol=48)
 so.occupancy = as.data.frame(cov)
 
 # This need to be csvs or a matrix of variables and their values across the survey area that affect detection
-# so.detection = read.csv("so_detection.csv") # koshkina csv
+# so.detection.koshkina = read.csv("so_detection.csv") # koshkina csv
 # this should be the same number of sites surveyed = 394, 48 columns
 
 # simulate data
-set.seed(1234)
+ set.seed(1234)
 alt <- matrix(rnorm(1,0,1), nrow=394, ncol=48)
 so.detection =as.data.frame(alt)
 

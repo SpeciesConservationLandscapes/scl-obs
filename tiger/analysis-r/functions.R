@@ -333,26 +333,18 @@ negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
 	psi.pres=psi[rowSums(sapply(y.so,as.numeric))>=1,]
 	psi.non.pres=psi[rowSums(sapply(y.so,as.numeric))==0,]
 
-
-	print("psi.pres")
-	print(str(psi.pres))
-	print("psi.non.pres")
-	print(str(psi.non.pres))
-	
 	# prob of occupancy for sites with presence at least in one of the surveys, and with no presence detected
 	psi.pres=psi[rowSums(sapply(y.so,as.numeric))>=1,]
 	psi.non.pres=psi[rowSums(sapply(y.so,as.numeric))==0,]
 	
-	print("psi.pres")
-	print(str(psi.pres))
-	print("psi.non.pres")
-	print((psi.non.pres))
-
 	#If there is only one site with no observed animals R automatically turns p.so.non.pres in a vector while we need it in a form of a matrix with 1 row and J.so (number of surveys rows) for the function rowProds to work
+	
+	# within each row, how many surveys
+	# how many 1s there are
+	
 	if (length(p.so.non.pres)==J.so) {dim(p.so.non.pres)=c(1,J.so)}
 
 	so.pres=sum(log(psi.pres)+rowSums(y.so.pres*log(p.so.pres)+(1-y.so.pres)*log(1-p.so.pres)))
-
 
 	so.non.pres=0
 	if (!is.null(psi.non.pres))	{
@@ -369,6 +361,6 @@ negLL.pbso = function(param,y.so.pres,y.so, X.po, W.po, X.back, W.back, X.so, W.
 
 	param.po = param[1:(dim(X.po)[2]+dim(W.po)[2])]
 	param.so = param[c(1:dim(X.po)[2], (dim(X.po)[2]+dim(W.po)[2]+1):(dim(X.po)[2]+dim(W.po)[2]+dim(W.so)[3]))]
-	negLL.po(param.po, X.po, W.po,X.back, W.back ) + negLL.so(param.so,y.so.pres,y.so,X.so,W.so)
+	negLL.po(param.po, X.po, W.po,X.back, W.back ) + negLL.so(param.so,y.so.pres,y.so,X.so,W.so) +  negLL.so(param.so,y.so.pres,y.so,X.so,W.so)
 }
 
