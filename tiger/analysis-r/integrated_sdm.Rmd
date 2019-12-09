@@ -158,7 +158,7 @@ a = dplyr::select(a,-c(good.survey))
 # expand the 1's
 b = s.o.original %>% 
   filter(observation == 1) %>% 
-  crossing(survey =(1:46)) %>% 
+  crossing(survey =(1:98)) %>% 
   mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>%
   na.omit() %>%
   mutate(true.observation = ifelse(survey!=replicate, 0, 1))
