@@ -216,7 +216,6 @@ ct$replicate[is.na(ct$replicate)] <- 0
 ct <- ct %>% select(deployment.ID, num.surveys, grid, observation.date.time, observation, replicate, camera.latitude, camera.longitude)
 
 xy <- ct %>% select(x = camera.latitude, y = camera.longitude)
-xy = SpatialPoints(xy)
 ```
 
 ```{r}
@@ -284,6 +283,8 @@ pb.original <- read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv", skip = 1)
 pb.original <- pb.original %>% select(grid = cell.label,
                                       observation.date,
                                       observation = Report)
+
+
 
 ###############################
 # pb.occupancy - matrix with covariates that effect occupancy in the locations of detected presences 
