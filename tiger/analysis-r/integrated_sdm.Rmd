@@ -59,6 +59,7 @@ The following shapefile was provided by the SCL Team. The shapefile contains the
 setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 unzip("sumatragridmrgd.zip")
 sumatra.map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
+st_crs(sumatra.map)
 
 ########################################
 # Shapefiles of Covariates
@@ -91,39 +92,6 @@ WibiPuspa_1000pts_srtm.shp<-raster(WibiPuspa_1000pts_srtm.shp)
 
 ## IMPORT DATA: AD HOC, SITE OCCUPANCY, PRESENCE-ABSENCE DATA, COVARIATES  
 ----------------------------------------------------------------------------
-
-y.so is the final dataframe for the survey data mentioned in the previous section. As you can see, there are 394 rows representing each site that was surveyed. The number of columns that contains a 0 or 1 corresponds to the number of times each site was surveyed. Not every row has the same number of columns with a 0 or 1 since sites were surveyed a different number of times. NA's are in the trailing columns of the matrix. 
-
-We tried to replace the NA's with 0s because we keep running into problems later...This still didn't fix the issue.
-
-pb.all represents the camera trap data. Each row of latitude and longitude values represents a tiger presence captured on camera. There are 301 observations in total from two datasets provided by Tim O'Brien.
-
-**Ad hoc data:**
-
-The following ad hoc data only has the grid label, no latitude or longitude values.
-
-```{r}
-# set working directory
-setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
-
-########################################
-# Import Ad hoc data
-########################################
-
-# read csv of ad hoc data
-ad.hoc.original <- read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv", skip = 1)
-ad.hoc.data <- ad.hoc.original %>% select(cell.label,
-                                          observation.date,
-                                          observation = Report)
-```
-
-
-```{r}
-########################################
-# Import GBIF data
-########################################
-# source("gbif_idigbio_extraction.R") - needs to be checked
-```
 
 ```{r}
 ########################################
@@ -237,43 +205,96 @@ ct <- ct %>% mutate(# number of days between pick up and deployment
 ct <- ct %>% filter(pickup.date.time != "NONE")
 
 # add 0s for where a camera wasn't observed (listed as NAs)
-ct$observation <- 0
-ct <- ct %>% mutate(observation = ifelse(observation.date.time != NA,0,1))
+ct$observation.date.time <- as.character(ct$observation.date.time)
+ct$observation.date.time[is.na(ct$observation.date.time)] <- 0
+ct <- ct %>% mutate(observation = ifelse(observation.date.time == 0, 0, 1))
 
+# add 1s for where there was only one survey and no observation (listed as NAs)
+ct$replicate <- as.character(ct$replicate)
+ct$replicate[is.na(ct$replicate)] <- 0
 
+ct <- ct %>% select(deployment.ID, num.surveys, grid, observation.date.time, observation, replicate, camera.latitude, camera.longitude)
+
+xy <- ct %>% select(x = camera.latitude, y = camera.longitude)
+xy = SpatialPoints(xy)
 ```
 
-The following code is likely the issue for the error in the final model. When trying to use the extract function, pb.occupancy and pb.detection are only outputting NAs. This could be an issue with the covariate shapefiles used? So, we simulated data for pb.detection and pb.occupancy.
+```{r}
+# populated the 0's 
+a = ct %>% 
+  filter(observation == 0) %>% 
+  crossing(survey =(1:154)) %>% 
+  mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>% 
+  na.omit()
+
+a = dplyr::select(a,-c(good.survey))
+
+# expand the 1's
+b = ct %>% 
+  filter(observation == 1) %>% 
+  crossing(survey =(1:154)) %>% 
+  mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>%
+  na.omit() %>%
+  mutate(true.observation = ifelse(survey!=replicate, 0, 1))
+
+b = dplyr::select(b,-c(good.survey,observation)) %>% 
+  rename(observation = true.observation)
+
+# combine the two
+ct.filled =rbind(a,b)
+ct.filled_a = 
+  dplyr::select(ct.filled,-c(replicate)) %>%    
+  distinct(survey,
+           grid,
+           observation.date.time,
+           observation,
+           .keep_all = T)
+
+#find the overlapping observations
+onlyOnes = filter(ct.filled_a, observation ==1)
+onlyZs = filter(ct.filled_a, observation == 0)
+reps = plyr::match_df(onlyZs, 
+                      onlyOnes,
+                      on = c("deployment.ID"))
+
+# final filled has 68 unique levels - correct
+final.filled = setdiff(ct.filled_a, reps)
+
+final.filled$deployment_ID = cumsum(!duplicated(final.filled[2:6]))
+strip.so = dplyr::select(final.filled,observation,survey,deployment_ID,grid)
+
+ct.so = spread(strip.so,survey,observation)
+View(ct.so)
+```
+
+**Ad hoc data:**
+
+The following ad hoc data only has the grid label, no latitude or longitude values.
 
 ```{r}
+# set working directory
+setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
+
+########################################
+# Import Ad hoc data
+########################################
+
+# read csv of ad hoc data
+pb.original <- read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv", skip = 1)
+pb.original <- pb.original %>% select(grid = cell.label,
+                                      observation.date,
+                                      observation = Report)
+
 ###############################
-# pb.occupancy - matrix with covariates that effect occupancy in the locations of detected presences of the camera trap - should be ad hoc
-# pb.detection - matrix with covariates that effect detection in the locations of detected presences of the camera trap - should be ad hoc
+# pb.occupancy - matrix with covariates that effect occupancy in the locations of detected presences 
+# pb.detection - matrix with covariates that effect detection in the locations of detected presences 
 ###############################
 
-.rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
+# .rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
 # getting only NA values?
 pb.occupancy=raster::extract(x=s.occupancy,y=pb.loc)
  #raster::extract(s.occupancy)
 pb.detection=extract(s.detection,pb.loc)
- 
-extract(s.detection)
- 
- #####SKIP TO line 341
-
-# is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
-# pb.detection=pb.detection[is.complete.pb,]
-# pb.occupancy=pb.occupancy[is.complete.pb,]
-
-###############################
-# the following code is simulated because the code above is giving NAs for pb.occupancy and pb.detection
-###############################
-
-# 394 rows in this example. When this is changed to 394, it runs. Not sure why?
-n = 394
-set.seed(1234)
-pb.detection <- as.data.frame(rnorm(n,0,1))
-pb.occupancy <- as.data.frame(rnorm(n,0,1))
 
 # only include complete cases
 is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
@@ -281,9 +302,6 @@ pb.detection=pb.detection[is.complete.pb,]
 pb.occupancy=pb.occupancy[is.complete.pb,]
 ```
 
-so.occupancy and so.detection were also simulated. It's unclear in the Koshkina paper and code where these values came from. It's possible they were calculated across the survey area?
-
-zscore
 
 ```{r}
 # set working directory
