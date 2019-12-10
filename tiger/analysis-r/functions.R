@@ -83,9 +83,11 @@ so.model=function(X.so,W.so,y.so){
 	
 
 	# matrices would turn NAs into 0s.
-	y.so.pres = y.so[rowSums(sapply(y.so,as.numeric))>=1,] #detection/non detection matrix for sites with detection in at least one of the surveys
-
-
+	print("before")
+	
+	presences = rowSums(sapply(y.so,as.numeric))>=1
+	y.so.pres = y.so[presences,] #detection/non detection matrix for sites with detection in at least one of the surveys
+	print("after")
 	alpha.names.so=NULL
 	for (i in 1:(dim(W.so)[3])){
 		alpha.names.so[i]=paste("alpha",as.character(i-1), ".so", sep="")}
@@ -310,32 +312,40 @@ negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
 	print("lambda")
 	print(str(lambda.so))
 	psi =1- exp(-lambda.so*area.so)
-
+  print("psi")
+  print(str(psi))
 
 	mean(lambda.so)
 	mean(psi)
 
 	p.so = matrix(nrow=dim(W.so)[1], ncol=J.so)
-	print("p.so")
-  print(str(p.so))
+
   
   print("W.so")
   print(str(W.so))
 	for (j in 1:J.so) {
 		p.so[, j] = expit(as.matrix(W.so[,j,], nrow=dim(W.so)[1]) %*% alpha)
 	}
-
-
-	# prob of detection for sites with presence at least in one of the surveys, and with no presence detected
+  print("p.so")
+  print(str(p.so))
   
   # turn NAs into 0s
 	# prob of occupancy for sites with presence at least in one of the surveys, and with no presence detected
-	psi.pres=psi[rowSums(sapply(y.so,as.numeric))>=1,]
-	psi.non.pres=psi[rowSums(sapply(y.so,as.numeric))==0,]
+  #create a new dataframe
+  presences =rowSums(sapply(y.so,as.numeric))>=1
+  str(presences)
+  absences = rowSums(sapply(y.so,as.numeric))==0
+  
+  # prob of detection for sites with presence at least in one of the surveys, and with no presence detected
+  p.so.pres=p.so[presences,]
+  p.so.non.pres=p.so[absences,]
+  
+	psi.pres=psi[presences,]
+	psi.non.pres=psi[absences,]
 
 	# prob of occupancy for sites with presence at least in one of the surveys, and with no presence detected
-	psi.pres=psi[rowSums(sapply(y.so,as.numeric))>=1,]
-	psi.non.pres=psi[rowSums(sapply(y.so,as.numeric))==0,]
+#	psi.pres=psi[rowSums(sapply(y.so,as.numeric))>=1,]
+#	psi.non.pres=psi[rowSums(sapply(y.so,as.numeric))==0,]
 	
 	#If there is only one site with no observed animals R automatically turns p.so.non.pres in a vector while we need it in a form of a matrix with 1 row and J.so (number of surveys rows) for the function rowProds to work
 	
@@ -350,9 +360,10 @@ negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
 	if (!is.null(psi.non.pres))	{
 		so.non.pres=sum(log(psi.non.pres*rowProds(1-p.so.non.pres)+1-psi.non.pres))
 	}
-
+  
+	neglog = -(so.pres+so.non.pres)
+	print(neglog)
 	-(so.pres+so.non.pres)
-
 }
 
 

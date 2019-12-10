@@ -110,7 +110,7 @@ setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
 #ad.hoc.original  = read.csv(f, skip=1)
 #ad.hoc.original = read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv")
 ad.hoc.original <- read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv", skip = 1)
-
+head(ad.hoc.original)
 ########################################
 # Import GBIF data
 ########################################
@@ -202,6 +202,8 @@ strip.so = dplyr::select(final.filled,observation,survey,survey_id,grid)
 # This next section will take that dataframe and turn it into a matrix of values. Each row will correspond to a survey.  If the survey happened 24 times, then the corresponding row will have 24 columns - either 0 or 1 - to denote whether a tiger was seen or not. The final dataframe is called *y.so*.
 # final site occupancy data
 y.so = spread(strip.so,survey,observation)
+View(ad.hoc.original)
+(str(ad.hoc.original))
 ```
 
 
@@ -297,13 +299,13 @@ w.files = c("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_hii.dbf")
 # covariates should be Formal class RasterLayer
 # covatiates that effect occupancy 
 # land cover of Indonesia
-#x.files=c("IDN_cov.grd")
+x.files=c("IDN_cov.grd")
 
 # data from https://www.diva-gis.org/datadown
 # covariates should be Formal class RasterLayer
 # covariates that effect detection 
 # altitude of Indonesia
-#w.files=c("IDN_alt.grd")
+w.files=c("IDN_alt.grd")
 
 ###############################
 # s.occupancy - raster with background covatiates that effect occupancy
@@ -313,8 +315,8 @@ w.files = c("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_hii.dbf")
 #for (i in c(x.files,w.files)) {
 #  do.call('=',list(i, raster(i)))
 #}
-getwd()
-raster(file.choose())
+#getwd()
+#raster(file.choose())
 s.occupancy = raster(get(x.files[1]))
 
 for (i in x.files) {

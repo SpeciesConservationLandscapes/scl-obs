@@ -535,11 +535,10 @@ summary(pb.occupancy)
 
 ```{r}
 setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
-#### We need to figure out how they got these values?????
 
 # This need to be csvs or a matrix of variables and their values across the survey area (-1 to 1 values for example) that affect occupancy
 so.occupancy.koshkina = read.csv("so_occupancy.csv") # koshkina csv
-ybso <- read.csv("yb-so.csv")
+#ybso <- read.csv("yb-so.csv")
 # this should be the same number of sites surveyed = 394, 48 columns
 
 # simulate data
@@ -561,7 +560,7 @@ print("removing NA")
 is.complete=complete.cases(so.occupancy)&complete.cases(so.detection)&complete.cases(y.so)
 so.occupancy=so.occupancy[is.complete,]
 so.detection=so.detection[is.complete,]
-y.so=y.so[is.complete,]
+#y.so=y.so[is.complete,]
 area.so =pi*0.04
 
 #removing rasters to free the memory
@@ -569,7 +568,7 @@ print('removing raster files')
 for (i in c(x.files,w.files)) {
 	do.call(remove,list(i))
 }
-remove(is.complete.pb,po,yb.so,po.loc)
+remove(is.complete.pb,po,po.loc)
 ```
 
 ## Preparing the Data for the Integrated Model
