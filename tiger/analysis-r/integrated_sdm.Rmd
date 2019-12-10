@@ -207,10 +207,6 @@ a = s.o.original %>%
   na.omit()
 a = dplyr::select(a,-c(good.survey))
 
-```
-
-```{r}
-
 # expand the 1's
 b = s.o.original %>% 
   filter(observation == 1) %>% 
