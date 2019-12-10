@@ -83,11 +83,18 @@ so.model=function(X.so,W.so,y.so){
 	
 
 	# matrices would turn NAs into 0s.
-	print("before")
+	#print("before")
+	y.so = replace(y.so, is.na(y.so),0)
+	#presences = rowSums(sapply(y.so,as.numeric))
+	presences= rowSums(y.so) >=1
 	
-	presences = rowSums(sapply(y.so,as.numeric))>=1
+ # presences  = replace(presences, is.na(presences), FALSE)
+ # print("presences")
+#  print(str(presences))
 	y.so.pres = y.so[presences,] #detection/non detection matrix for sites with detection in at least one of the surveys
-	print("after")
+
+	#View(y.so.pres)
+	#print("after")
 	alpha.names.so=NULL
 	for (i in 1:(dim(W.so)[3])){
 		alpha.names.so[i]=paste("alpha",as.character(i-1), ".so", sep="")}
@@ -297,72 +304,78 @@ FisherInfo.po = function(param) {
 
 # negative loglikelihood function for Mackenzie model - by Roberts and Spencer
 negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
+  
 
 	beta = param[1:dim(X.so)[2]]
-	print("beta")
-	print(str(beta))
+	#print("beta")
+	#print(str(beta))
 	alpha = param[(dim(X.so)[2]+1):(dim(X.so)[2]+dim(W.so)[3])]
-	print("alpha")
-	print(str(alpha))
+	#print("alpha")
+	#print(str(alpha))
 
 	#temp --------------------------
 	area.so=1
 
 	lambda.so = exp(X.so %*% beta)
-	print("lambda")
-	print(str(lambda.so))
+	#print("lambda")
+	#print(str(lambda.so))
+	#print(sum(is.na(lambda.so)))
 	psi =1- exp(-lambda.so*area.so)
-  print("psi")
-  print(str(psi))
+  #print("psi")
+  #print(str(psi))
+  #print(sum(is.na(psi)))
 
 	mean(lambda.so)
 	mean(psi)
+	#print(mean(psi))
+	#print(mean(lambda.so))
 
 	p.so = matrix(nrow=dim(W.so)[1], ncol=J.so)
 
   
-  print("W.so")
-  print(str(W.so))
+  #print("W.so")
+  #print(str(W.so))
 	for (j in 1:J.so) {
 		p.so[, j] = expit(as.matrix(W.so[,j,], nrow=dim(W.so)[1]) %*% alpha)
 	}
-  print("p.so")
-  print(str(p.so))
+  #print("p.so")
+  #print(str(p.so))
+  #print(is.na(p.so))
   
-  # turn NAs into 0s
-	# prob of occupancy for sites with presence at least in one of the surveys, and with no presence detected
-  #create a new dataframe
+
+  #within y.so, where are there presences, where are there absences
   presences =rowSums(sapply(y.so,as.numeric))>=1
   str(presences)
   absences = rowSums(sapply(y.so,as.numeric))==0
   
   # prob of detection for sites with presence at least in one of the surveys, and with no presence detected
-  p.so.pres=p.so[presences,]
-  p.so.non.pres=p.so[absences,]
+  p.so.pres=as.matrix(p.so[presences,])
+  p.so.non.pres=as.matrix(p.so[absences,])
   
-	psi.pres=psi[presences,]
-	psi.non.pres=psi[absences,]
+  # prob of occupancy for sites with presence at least in one of the surveys, and with no presence detected
+	psi.pres=as.matrix(psi[presences,])
+	psi.non.pres=as.matrix(psi[absences,])
 
-	# prob of occupancy for sites with presence at least in one of the surveys, and with no presence detected
-#	psi.pres=psi[rowSums(sapply(y.so,as.numeric))>=1,]
-#	psi.non.pres=psi[rowSums(sapply(y.so,as.numeric))==0,]
 	
 	#If there is only one site with no observed animals R automatically turns p.so.non.pres in a vector while we need it in a form of a matrix with 1 row and J.so (number of surveys rows) for the function rowProds to work
-	
-	# within each row, how many surveys
-	# how many 1s there are
 	
 	if (length(p.so.non.pres)==J.so) {dim(p.so.non.pres)=c(1,J.so)}
 
 	so.pres=sum(log(psi.pres)+rowSums(y.so.pres*log(p.so.pres)+(1-y.so.pres)*log(1-p.so.pres)))
+#	print("so.pres")
+#	print(str(so.pres))
 
 	so.non.pres=0
 	if (!is.null(psi.non.pres))	{
 		so.non.pres=sum(log(psi.non.pres*rowProds(1-p.so.non.pres)+1-psi.non.pres))
 	}
-  
+	#print("so.non.pres")
+	#print(str(so.non.pres))
+	
 	neglog = -(so.pres+so.non.pres)
-	print(neglog)
+	#print(neglog)
+	#print("y.so.pres")
+	#print(str(y.so.pres))
 	-(so.pres+so.non.pres)
 }
 
