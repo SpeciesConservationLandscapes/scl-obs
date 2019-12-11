@@ -344,9 +344,10 @@ negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
   
 
   #within y.so, where are there presences, where are there absences
-  presences =rowSums(sapply(y.so,as.numeric))>=1
-  str(presences)
-  absences = rowSums(sapply(y.so,as.numeric))==0
+  y.so2 = replace(y.so, is.na(y.so),0)
+  #presences = rowSums(sapply(y.so,as.numeric))
+  presences= rowSums(y.so2) >=1
+  absences = rowSums(y.so2)==0
   
   # prob of detection for sites with presence at least in one of the surveys, and with no presence detected
   p.so.pres=as.matrix(p.so[presences,])
