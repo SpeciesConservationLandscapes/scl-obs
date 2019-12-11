@@ -123,7 +123,6 @@ WibiPuspa_1000pts_srtm.shp<-raster(WibiPuspa_1000pts_srtm.shp)
 
 # s.detection <- 
 
-
 ```
 
 ## IMPORT DATA: AD HOC, SITE OCCUPANCY, PRESENCE-ABSENCE DATA, COVARIATES  
@@ -280,6 +279,7 @@ strip.ct = dplyr::select(final.filled,observation,survey,survey_id,grid)
 
 y.ct = spread(strip.ct,survey,observation)
 
+
 ########################################
 # Ad hoc data
 ########################################
@@ -403,16 +403,3 @@ save(pb.fit, so.fit, poANDso.fit, file="model.results.rda")
 
 printList(poANDso.fit)
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
