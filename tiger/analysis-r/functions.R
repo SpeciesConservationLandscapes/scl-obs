@@ -78,10 +78,8 @@ pb.ipp=function(X.po, W.po,X.back, W.back){
 so.model=function(X.so,W.so,y.so){
 
 	beta.names=colnames(X.so)
-	beta.names[1]='beta0'
+	#beta.names[1]='beta0'
 	# find sites with at least one detection
-	
-
 	# matrices would turn NAs into 0s.
 	#print("before")
 	y.so = replace(y.so, is.na(y.so),0)
@@ -90,10 +88,8 @@ so.model=function(X.so,W.so,y.so){
 	
  # presences  = replace(presences, is.na(presences), FALSE)
  # print("presences")
-#  print(str(presences))
+ 
 	y.so.pres = y.so[presences,] #detection/non detection matrix for sites with detection in at least one of the surveys
-
-	#View(y.so.pres)
 	#print("after")
 	alpha.names.so=NULL
 	for (i in 1:(dim(W.so)[3])){
@@ -307,8 +303,6 @@ negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
   
 
 	beta = param[1:dim(X.so)[2]]
-	#print("beta")
-	#print(str(beta))
 	alpha = param[(dim(X.so)[2]+1):(dim(X.so)[2]+dim(W.so)[3])]
 	#print("alpha")
 	#print(str(alpha))
@@ -334,13 +328,13 @@ negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
 
   
   #print("W.so")
-  #print(str(W.so))
+  
 	for (j in 1:J.so) {
 		p.so[, j] = expit(as.matrix(W.so[,j,], nrow=dim(W.so)[1]) %*% alpha)
 	}
   #print("p.so")
   #print(str(p.so))
-  #print(is.na(p.so))
+  
   
 
   #within y.so, where are there presences, where are there absences
@@ -352,31 +346,28 @@ negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
   # prob of detection for sites with presence at least in one of the surveys, and with no presence detected
   p.so.pres=as.matrix(p.so[presences,])
   p.so.non.pres=as.matrix(p.so[absences,])
-  
+ 
   # prob of occupancy for sites with presence at least in one of the surveys, and with no presence detected
 	psi.pres=as.matrix(psi[presences,])
 	psi.non.pres=as.matrix(psi[absences,])
-
+  
+  
 	
 	#If there is only one site with no observed animals R automatically turns p.so.non.pres in a vector while we need it in a form of a matrix with 1 row and J.so (number of surveys rows) for the function rowProds to work
 	
 	if (length(p.so.non.pres)==J.so) {dim(p.so.non.pres)=c(1,J.so)}
 
 	so.pres=sum(log(psi.pres)+rowSums(y.so.pres*log(p.so.pres)+(1-y.so.pres)*log(1-p.so.pres)))
-#	print("so.pres")
-#	print(str(so.pres))
+
 
 	so.non.pres=0
 	if (!is.null(psi.non.pres))	{
 		so.non.pres=sum(log(psi.non.pres*rowProds(1-p.so.non.pres)+1-psi.non.pres))
 	}
-	#print("so.non.pres")
-	#print(str(so.non.pres))
+	
 	
 	neglog = -(so.pres+so.non.pres)
-	#print(neglog)
-	#print("y.so.pres")
-	#print(str(y.so.pres))
+	
 	-(so.pres+so.non.pres)
 }
 
