@@ -80,6 +80,7 @@ so.model=function(X.so,W.so,y.so){
 	beta.names=colnames(X.so)
 	#beta.names[1]='beta0'
 	# find sites with at least one detection
+
 	# matrices would turn NAs into 0s.
 	#print("before")
 	y.so = replace(y.so, is.na(y.so),0)
@@ -91,6 +92,7 @@ so.model=function(X.so,W.so,y.so){
  
 	y.so.pres = y.so[presences,] #detection/non detection matrix for sites with detection in at least one of the surveys
 	#print("after")
+
 	alpha.names.so=NULL
 	for (i in 1:(dim(W.so)[3])){
 		alpha.names.so[i]=paste("alpha",as.character(i-1), ".so", sep="")}
@@ -104,10 +106,7 @@ so.model=function(X.so,W.so,y.so){
 
 	paramGuess = c(rep(.2, dim(X.so)[2]), rep(.1, dim(W.so)[3]))
 	fit.so = NA
-	fit.so = optim(par=paramGuess, fn=negLL.so, method='BFGS', hessian=TRUE,control=list(trace=TRUE), y.so.pres=y.so.pres,y.so=y.so, X.so=as.matrix(X.so), W.so=W.so)
-
-	#fit.so = optim(par=paramGuess, fn=negLL.so, method='BFGS', hessian=TRUE, y.so.pres=y.so.pres,y.so=y.so, X.so=as.matrix(X.so), W.so=W.so)
-
+	fit.so = optim(par=paramGuess, fn=negLL.so, method='BFGS', hessian=TRUE, y.so.pres=y.so.pres,y.so=y.so, X.so=as.matrix(X.so), W.so=W.so)
 
 	# calculating se with Hessian matrix
 	recipCondNum.so = NA
@@ -300,31 +299,22 @@ FisherInfo.po = function(param) {
 
 # negative loglikelihood function for Mackenzie model - by Roberts and Spencer
 negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
-  
 
 	beta = param[1:dim(X.so)[2]]
 	alpha = param[(dim(X.so)[2]+1):(dim(X.so)[2]+dim(W.so)[3])]
-	#print("alpha")
-	#print(str(alpha))
 
 	#temp --------------------------
 	area.so=1
 
 	lambda.so = exp(X.so %*% beta)
-	#print("lambda")
-	#print(str(lambda.so))
-	#print(sum(is.na(lambda.so)))
 	psi =1- exp(-lambda.so*area.so)
-  #print("psi")
-  #print(str(psi))
-  #print(sum(is.na(psi)))
+
 
 	mean(lambda.so)
 	mean(psi)
-	#print(mean(psi))
-	#print(mean(lambda.so))
 
 	p.so = matrix(nrow=dim(W.so)[1], ncol=J.so)
+
 
   
   #print("W.so")
@@ -354,7 +344,6 @@ negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
   
 	
 	#If there is only one site with no observed animals R automatically turns p.so.non.pres in a vector while we need it in a form of a matrix with 1 row and J.so (number of surveys rows) for the function rowProds to work
-	
 	if (length(p.so.non.pres)==J.so) {dim(p.so.non.pres)=c(1,J.so)}
 
 	so.pres=sum(log(psi.pres)+rowSums(y.so.pres*log(p.so.pres)+(1-y.so.pres)*log(1-p.so.pres)))
@@ -364,11 +353,9 @@ negLL.so = function(param, y.so.pres, y.so,X.so,W.so) {
 	if (!is.null(psi.non.pres))	{
 		so.non.pres=sum(log(psi.non.pres*rowProds(1-p.so.non.pres)+1-psi.non.pres))
 	}
-	
-	
-	neglog = -(so.pres+so.non.pres)
-	
+
 	-(so.pres+so.non.pres)
+
 }
 
 
@@ -377,6 +364,6 @@ negLL.pbso = function(param,y.so.pres,y.so, X.po, W.po, X.back, W.back, X.so, W.
 
 	param.po = param[1:(dim(X.po)[2]+dim(W.po)[2])]
 	param.so = param[c(1:dim(X.po)[2], (dim(X.po)[2]+dim(W.po)[2]+1):(dim(X.po)[2]+dim(W.po)[2]+dim(W.so)[3]))]
-	negLL.po(param.po, X.po, W.po,X.back, W.back ) + negLL.so(param.so,y.so.pres,y.so,X.so,W.so) +  negLL.so(param.so,y.so.pres,y.so,X.so,W.so)
+	negLL.po(param.po, X.po, W.po,X.back, W.back ) + negLL.so(param.so,y.so.pres,y.so,X.so,W.so)
 }
 
