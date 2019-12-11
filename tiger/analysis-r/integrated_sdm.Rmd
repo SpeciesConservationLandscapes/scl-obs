@@ -49,18 +49,52 @@ source("functions.r")
 The following shapefile was provided by the SCL Team. The shapefile contains the grid cells of Sumatra, Indonesia. Of these grid cells, 394 were surveyed. Grid cells were surveyed for presences of tigers. Presences and absences of tigers were recorded for each survey replicate.
 
 ```{r}
+# set working directory for all code here:
+setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
+
+########################################
+# Import data
+########################################
+
+###
+# 1 Site Occupancy
+###
+
+s.o.original = read.csv("Tiger_observation_entry_9_SS_Observations_SUMATRA.csv")
+
+###
+# 2 Camera Trap
+###
+
+# BBSNP2015 CT data
+# Leuser data doesn't have observation date
+tiger.CT.observations <- read.csv("Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
+tiger.CT.entry <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
+
+###
+# 3 Ad Hoc
+###
+
+pb.original <- read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv", skip = 1)
+pb.original <- pb.original %>% select(grid = cell.label, 
+                    observation.date,
+                    observation = Report)
+
 ########################################
 # Sumatran Grid Cells
 ########################################
 
 # import Sumatra shapefile of gridcells 
-
-# set working directory
-setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
 unzip("sumatragridmrgd.zip")
 sumatra.map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
-st_crs(sumatra.map)
 
+# import shapefile of camera lat long and corresponding gridcells
+unzip("camera_latlon_gridcode.zip")
+camera.gridcode <- readOGR(dsn = ".", layer = "camera_latlon_gridcode")
+camera.gridcode <- as.data.frame(camera.gridcode)
+```
+
+```{r}
 ########################################
 # Shapefiles of Covariates
 ########################################
@@ -88,6 +122,8 @@ WibiPuspa_1000pts_srtm.shp<-raster(WibiPuspa_1000pts_srtm.shp)
 # s.occupancy <- 
 
 # s.detection <- 
+
+
 ```
 
 ## IMPORT DATA: AD HOC, SITE OCCUPANCY, PRESENCE-ABSENCE DATA, COVARIATES  
@@ -95,34 +131,23 @@ WibiPuspa_1000pts_srtm.shp<-raster(WibiPuspa_1000pts_srtm.shp)
 
 ```{r}
 ########################################
-# Import site occupancy data
+# Site occupancy data
 ########################################
 
 # This section expands the dataframe so that there is a row for each time an area is surveyed. For example, if an area is surveyed 5 times, there are 5 rows for it, with the observation==1 on the times where a tiger or tiger signs were seen at the location in question. 
-
-# set working directory
-setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
-
-# read csv of SO data
-#f = file.choose()
-#s.o.original = read.csv("Tiger_observation_entry_9_SS_Observations_SUMATRA.csv" )
-s.o.original = read.csv("Tiger_observation_entry_9_SS_Observations_SUMATRA.csv")
 
 # rename variables
 s.o.original = rename(s.o.original, 
                       num.surveys = X..replicates.surveyed,
                       grid = grid.cell.label, 
                       replicate = replicate..)
-
 # populated the 0's 
 a = s.o.original %>% 
   filter(observation == 0) %>% 
   crossing(survey =(1:98)) %>% 
   mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>% 
   na.omit()
-
 a = dplyr::select(a,-c(good.survey))
-
 # expand the 1's
 b = s.o.original %>% 
   filter(observation == 1) %>% 
@@ -130,10 +155,8 @@ b = s.o.original %>%
   mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>%
   na.omit() %>%
   mutate(true.observation = ifelse(survey!=replicate, 0, 1))
-
 b = dplyr::select(b,-c(good.survey,observation)) %>% 
   rename(observation = true.observation)
-
 # combine the two
 so.filled =rbind(a,b)
 so.filled_a = 
@@ -143,8 +166,6 @@ so.filled_a =
            start.date,
            observation,
            .keep_all = T)
-
-###  
 #find the overlapping observations
 onlyOnes = filter(so.filled_a, observation ==1)
 onlyZs = filter(so.filled_a, observation == 0)
@@ -153,35 +174,20 @@ reps = plyr::match_df(onlyZs,
                       on = c("survey",
                              "start.date",
                              "grid"))
-
 # subtract overlapping observations from the expanded set
 final.filled = setdiff(so.filled_a,reps)
-
 final.filled$survey_id = cumsum(!duplicated(final.filled[2:4]))
 strip.so = dplyr::select(final.filled,observation,survey,survey_id,grid)
-
 ###############################
 # y.so
 ###############################
-
 # This next section will take that dataframe and turn it into a matrix of values. Each row will correspond to a survey.  If the survey happened 24 times, then the corresponding row will have 24 columns - either 0 or 1 - to denote whether a tiger was seen or not. The final dataframe is called *y.so*.
 # final site occupancy data
 y.so = spread(strip.so,survey,observation)
-View(y.so)
-```
 
-```{r}
 ########################################
-# Import camera trap data
+# Camera trap data
 ########################################
-
-# set working directory
-setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
-
-# BBSNP2015 CT data
-# Leuser data doesn't have observation date
-tiger.CT.observations <- read.csv("Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
-tiger.CT.entry <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
 
 # includes grids that had CT but no tiger was observed
 ct <- plyr::join(tiger.CT.entry, tiger.CT.observations, by = "deployment.ID", type = "full")
@@ -215,12 +221,22 @@ ct$replicate[is.na(ct$replicate)] <- 0
 
 ct <- ct %>% select(deployment.ID, num.surveys, grid, observation.date.time, observation, replicate, camera.latitude, camera.longitude)
 
-xy <- ct %>% select(x = camera.latitude, y = camera.longitude)
-```
+# rename variables with Kim's gridcell shapefile
+camera.gridcode <- camera.gridcode %>% mutate(camera.latitude = lat, 
+                                              camera.longitude = lon)
 
-```{r}
+# merge with CT data to see which grid cell the CT are in
+ct.merged <- merge(ct, camera.gridcode, by = c("camera.latitude","camera.longitude"))
+
+# drop variables 
+ct.merged <- ct.merged %>% select(grid = gridcode,
+                                  observation,
+                                  num.surveys,
+                                  replicate,
+                                  observation.date.time)
+
 # populated the 0's 
-a = ct %>% 
+a = ct.merged %>% 
   filter(observation == 0) %>% 
   crossing(survey =(1:154)) %>% 
   mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>% 
@@ -229,7 +245,7 @@ a = ct %>%
 a = dplyr::select(a,-c(good.survey))
 
 # expand the 1's
-b = ct %>% 
+b = ct.merged %>% 
   filter(observation == 1) %>% 
   crossing(survey =(1:154)) %>% 
   mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>%
@@ -250,89 +266,42 @@ ct.filled_a =
            .keep_all = T)
 
 #find the overlapping observations
-onlyOnes = filter(ct.filled_a, observation ==1)
+onlyOnes = filter(ct.filled_a, observation == 1)
 onlyZs = filter(ct.filled_a, observation == 0)
 reps = plyr::match_df(onlyZs, 
                       onlyOnes,
-                      on = c("deployment.ID"))
+                      on = c("survey",
+                             "observation.date.time",
+                             "grid"))
+# subtract overlapping observations from the expanded set
+final.filled = setdiff(ct.filled_a,reps)
+final.filled$survey_id = cumsum(!duplicated(final.filled[2:4]))
+strip.ct = dplyr::select(final.filled,observation,survey,survey_id,grid)
 
-# final filled has 68 unique levels - correct
-final.filled = setdiff(ct.filled_a, reps)
-
-final.filled$deployment_ID = cumsum(!duplicated(final.filled[2:6]))
-strip.so = dplyr::select(final.filled,observation,survey,deployment_ID,grid)
-
-ct.so = spread(strip.so,survey,observation)
-View(ct.so)
-```
-
-**Ad hoc data:**
-
-The following ad hoc data only has the grid label, no latitude or longitude values.
-
-```{r}
-# set working directory
-setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
+y.ct = spread(strip.ct,survey,observation)
 
 ########################################
-# Import Ad hoc data
+# Ad hoc data
 ########################################
-
-# read csv of ad hoc data
-pb.original <- read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv", skip = 1)
-pb.original <- pb.original %>% select(grid = cell.label,
-                                      observation.date,
-                                      observation = Report)
-
-
 
 ###############################
 # pb.occupancy - matrix with covariates that effect occupancy in the locations of detected presences 
 # pb.detection - matrix with covariates that effect detection in the locations of detected presences 
 ###############################
 
-# .rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
-# getting only NA values?
-pb.occupancy=raster::extract(x=s.occupancy,y=pb.loc)
- #raster::extract(s.occupancy)
-pb.detection=extract(s.detection,pb.loc)
+# Ad hoc data only has grid cell???
 
-# only include complete cases
-is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
-pb.detection=pb.detection[is.complete.pb,]
-pb.occupancy=pb.occupancy[is.complete.pb,]
+# pb.loc=SpatialPoints(pb)
+# pb.occupancy=extract(s.occupancy,pb.loc)
+# pb.detection=extract(s.detection,pb.loc)
+# 
+# is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
+# pb.detection=pb.detection[is.complete.pb,]
+# pb.occupancy=pb.occupancy[is.complete.pb,]
 ```
 
 
 ```{r}
-# set working directory
-setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
-# setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
-
-###############################
-# so.occupancy - matrix with covariates that effect occupancy in the locations of presence-absence survey sites
-# so.detection - matrix with covariates that effect detection in the locations of PA survey sites in each survey
-###############################
-
-# This need to be csvs or a matrix of variables and their values across the survey area (-1 to 1 values for example) that affect occupancy
-so.occupancy.koshkina = read.csv("so_occupancy.csv") # koshkina csv
-ybso <- read.csv("yb-so.csv")
-# this should be the same number of sites surveyed = 394, 48 columns
-
-# simulate data
-set.seed(1234)
-cov <- matrix(rnorm(18912,0,1), nrow=394, ncol=48)
-so.occupancy = as.data.frame(cov)
-
-# This need to be csvs or a matrix of variables and their values across the survey area that affect detection
-# so.detection.koshkina = read.csv("so_detection.csv") # koshkina csv
-# this should be the same number of sites surveyed = 394, 48 columns
-
-# simulate data
- set.seed(1234)
-alt <- matrix(rnorm(1,0,1), nrow=394, ncol=48)
-so.detection =as.data.frame(alt)
-
 # Only use complete cases
 print("removing NA")
 is.complete=complete.cases(so.occupancy)&complete.cases(so.detection)&complete.cases(y.so)
