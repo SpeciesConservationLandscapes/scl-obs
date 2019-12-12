@@ -5,7 +5,7 @@
 
 #0. Set working Directory
 setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/analysis_r")
-
+getwd()
 
 #1. Load required packages - from integrated_sdm.Rmd =========================
 ##Required Packages
