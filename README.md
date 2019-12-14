@@ -1,5 +1,7 @@
 # scl-obs
-Repository for species observation schema templates and code for producing probability grids from observations
+Repository for species observation schema templates and code for producing probability grids from observations.
+
+Use integrated_sdm_final.R and functions_modified.R
 
 ## Repository Structure
 
