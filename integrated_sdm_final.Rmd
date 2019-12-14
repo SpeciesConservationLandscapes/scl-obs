@@ -27,7 +27,7 @@ for(p in requiredPackages){
   library(p,character.only = TRUE)
 }
 
-source("tiger/analysis-r/functions.R") # read functions
+# source("tiger/analysis-r/functions.R") # read functions
 
 ########################################
 # Import data
@@ -137,8 +137,8 @@ so.occupancy <- so.occupancy %>% select(grid.cell.label,
                                         hii = sumatragridmrgd2_centroids_hii_hii_1) %>% 
                 distinct(grid.cell.label, .keep_all = TRUE) %>% select(-grid.cell.label)
 
-so.detection <- so.occupancy %>% select(elevation,
-                                       hii)
+# so.detection <- so.occupancy %>% select(elevation,
+#                                        hii)
 
 # plot to check ???
 # plot(s.occupancy) 
@@ -211,36 +211,52 @@ y.so = spread(strip.so,survey,observation)
 # remove variables grid and id.survey
 y.so <- y.so %>% select(-grid, -id.survey)
 
-# change NA's to zeros???
-y.so[is.na(y.so)] <- 0
+# # change NA's to zeros???
+# y.so[is.na(y.so)] <- 0
+
+test = matrix(0,ncol = 2, nrow = dim(y.so)[1])
+test[,1] = rowSums(ifelse(is.na(y.so)==FALSE,1,0)) # number of times zero or one
+test[,2] = rowSums(ifelse(is.na(y.so)==FALSE & y.so == 1,1,0)) # number of times tiger was seen 
 ```
 
 ```{r}
-is.complete=complete.cases(so.occupancy)&complete.cases(so.detection)&complete.cases(y.so)
-so.occupancy=so.occupancy[is.complete,]# only use complete cases
-so.detection=so.detection[is.complete,]# only use complete cases
-y.so=y.so[is.complete,]# only use complete cases
+# is.complete=complete.cases(so.occupancy)&complete.cases(test)
+
+is.complete = which(so.occupancy$hii != "NaN")
+
+so.occupancy = so.occupancy[is.complete,]# only use complete cases
+
+so.occupancy$elevation <- tr(so.occupancy$elevation)
+so.occupancy$hii <- tr(so.occupancy$hii)
+
+test=test[is.complete,]# only use complete cases
+# so.detection=so.detection[is.complete,]# only use complete cases
+# y.so=y.so[is.complete,]# only use complete cases
 area.so =pi*0.04
 ```
 
 ```{r}
 #y.so # matrix of presences and absences (when the species was and wasn't present)
-J.so=ncol(y.so) # 98
+
+y.so <- test
+
+# J.so=ncol(y.so) 
 # so.detection has 2 columns and 381 rows
 # add column of 1s
+
 X.so=cbind(rep(1, nrow(as.matrix(so.occupancy))), so.occupancy) # 3 columns and 381 rows (2 columns are covariates)
 
 # something weird is happening here:
-W.so = array(dim=c(nrow(as.matrix(so.detection)), J.so, 2))
- # W.so = array(381, 98, 2) #1:381, 1:98, 1:2
-W.so[,,1] = 1  #1:381, 1:98, 1:2 - NAs in first 98 columns, add 1s. 381 rows total. 
-W.so[,,2] = so.detection #  adds covariates to the remaining columns
+# W.so = array(dim=c(nrow(as.matrix(so.detection)), J.so, 2))
+#  # W.so = array(381, 98, 2) #1:381, 1:98, 1:2
+# W.so[,,1] = 1  #1:381, 1:98, 1:2 - NAs in first 98 columns, add 1s. 381 rows total. 
+# W.so[,,2] = so.detection #  adds covariates to the remaining columns
 
-so.fit=so.model(X.so,W.so,y.so)
+so.fit=so.model(X.so,y.so)
 
 # Error in 1:(dim(W.so)[3]) : argument of length 0
 
-# printList(so.fit)
+printList(so.fit)
 # Parameter name       Value Standard error
 # 1              beta0  0.15590991     0.20371511
 # 2 Cobertura.prom.250  0.73820827     0.29841051
