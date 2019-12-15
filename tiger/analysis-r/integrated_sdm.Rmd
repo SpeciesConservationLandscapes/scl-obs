@@ -31,7 +31,7 @@ for(p in requiredPackages){
 }
 
 # load functions in separate R file
-source("functions.r")
+source("functions2.R")
 ```
 
 ## Preparing data for the Code
@@ -59,10 +59,11 @@ unzip("data/sumatragridmrgd.zip")
 setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")#/sumatragridmrgd")
 #can't get this to work - how is it working for Mari?
 
-#Mari's Directory
-  # import Sumatra shapefile of gridcells 
-  #setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
-  #unzip("sumatragridmrgd.zip")
+
+# tiger.CT.observations2 <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2.csv")
+# tiger.CT.entry2 <- read.csv("Tiger_observation_entry_9_CT_deployments_observations_Leuser_V2.csv")
+
+
 
 sumatra.map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
 st_crs(sumatra.map)
@@ -105,10 +106,16 @@ ct.srtm.Leuser<-raster(Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2
 WibiPuspa_1000pts_hii.shp<-raster(WibiPuspa_1000pts_hii.shp)
 WibiPuspa_1000pts_srtm.shp<-raster(WibiPuspa_1000pts_srtm.shp)
 
-s.detection <- crop(ct.hii, sumatra.map) # Rasterbrick
-s.detection <- stack(s.detection) # convert to Rasterstack
-plot(s.detection)
+so.occupancy <- read.csv("Tiger_observation_entry_9_SS_Observations_SUMATRA_srtm_hii.csv")
 
+so.occupancy <- so.occupancy %>% select(grid.cell.label, 
+                                        elevation = sumatragridmrgd2_centroids_srtm_srtm_1,
+                                        hii = sumatragridmrgd2_centroids_hii_hii_1) %>% 
+                distinct(grid.cell.label, .keep_all = TRUE) %>% select(-grid.cell.label)
+
+
+so.detection <- so.occupancy %>% select(elevation,
+                                       hii)
 ```
 
 ## Preparing data for the Code
@@ -185,7 +192,8 @@ s.o.original = rename(s.o.original,
                       grid = grid.cell.label, 
                       replicate = replicate..)
 
-s.o.original = s.o.original %>% dplyr::select(-survey.id) #same on every column
+
+s.o.original = s.o.original %>% select(-survey.id) #same on every column
 
 #unique id on grid cel & replicate number
 s.o.original$id.survey = cumsum(!duplicated(s.o.original[2:4])) 
@@ -217,7 +225,6 @@ b = s.o.original %>%
   mutate(observation = ifelse(survey!=replicate, 0, 1))
 
 b = dplyr::select(b,-c(good.survey)) 
-View(s.o.original)
 
 # combine the two
 so.filled =rbind(a,b)
@@ -234,20 +241,19 @@ onlyOnes = filter(so.filled_a, observation ==1)
 onlyZs = filter(so.filled_a, observation == 0)
 
 reps = plyr::match_df( 
-                      onlyZs,onlyOnes,
-                      on = c("id.survey","survey"))
+
+  onlyZs,onlyOnes,
+  on = c("id.survey","survey"))
+
 # subtract overlapping observations from the expanded set
 final.filled = setdiff(so.filled_a,reps)
 #final.filled$survey_id = cumsum(!duplicated(final.filled[2:4]))
 strip.so = dplyr::select(final.filled,observation,survey,grid, id.survey)
-###############################
-# y.so
-###############################
+
 
 # This next section will take that dataframe and turn it into a matrix of values. Each row will correspond to a survey.  If the survey happened 24 times, then the corresponding row will have 24 columns - either 0 or 1 - to denote whether a tiger was seen or not. The final dataframe is called *y.so*.
 # final site occupancy data
 y.so = spread(strip.so,survey,observation)
-
 ```
 
 
@@ -256,12 +262,25 @@ y.so = spread(strip.so,survey,observation)
 # Import camera trap data
 ########################################
 
-setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
+# LeuserCT2013 CT data - missing observation time
+# tiger.CT.observations2 <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2.csv")
+# 
+# pb2 <- tiger.CT.observations2 %>% dplyr::select(project.ID,
+#                                          camera.latitude,
+#                                          camera.longitude,
+#                                          deployment.date.time,
+#                                          pickup.date.time,
+#                                          bait,
+#                                          large.prey,
+#                                          small.prey,
+#                                          livestock)
+# 
+# pb2.latlong <- pb2 %>% dplyr::select(camera.latitude,
+#                               camera.longitude)
+# 
+# # merge two dataframes of camera trap lat and long values
+# pb.all <- merge(pb.latlong, pb2.latlong, all.x=TRUE, all.y=TRUE)
 
-# BBSNP2015 CT data
-# Leuser data doesn't have observation date
-tiger.CT.observations <- read.csv("Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
-tiger.CT.entry <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
 
 # includes grids that had CT but no tiger was observed
 ct <- plyr::join(tiger.CT.entry, tiger.CT.observations, by = "deployment.ID", type = "full")
@@ -412,6 +431,58 @@ xy <- ct %>% select(x = camera.latitude, y = camera.longitude)
 ```
 
 ```{r}
+max(ct.merged$num.surveys) # 154
+
+# Take all the surveys with NO signs
+# create new row for each survey that took 
+a = s.o.original %>% 
+  filter(observation == 0) %>% 
+  crossing(survey =(1:98)) %>% #max number of surveys done
+  mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>% 
+  na.omit()
+a = dplyr::select(a,-c(good.survey))
+
+# expand the 1's
+b = s.o.original %>% 
+  filter(observation == 1) %>% 
+  select(-observation) %>% 
+  crossing(survey =(1:98)) %>% 
+  mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>%
+  na.omit() %>%
+  mutate(observation = ifelse(survey!=replicate, 0, 1))
+
+b = dplyr::select(b,-c(good.survey)) 
+#View(s.o.original)
+
+# combine the two
+so.filled =rbind(a,b)
+so.filled_a = 
+  dplyr::select(so.filled,-c(replicate)) %>%    
+  distinct(survey,
+           observation,
+           id.survey,
+           .keep_all = T)
+
+###  
+#find the overlapping observations
+onlyOnes = filter(so.filled_a, observation ==1)
+onlyZs = filter(so.filled_a, observation == 0)
+
+reps = plyr::match_df( 
+  onlyZs,onlyOnes,
+  on = c("id.survey","survey"))
+# subtract overlapping observations from the expanded set
+final.filled = setdiff(so.filled_a,reps)
+#final.filled$survey_id = cumsum(!duplicated(final.filled[2:4]))
+strip.so = dplyr::select(final.filled,observation,survey,grid, id.survey)
+
+# This next section will take that dataframe and turn it into a matrix of values. Each row will correspond to a survey.  If the survey happened 24 times, then the corresponding row will have 24 columns - either 0 or 1 - to denote whether a tiger was seen or not. The final dataframe is called *y.so*.
+# final site occupancy data
+y.so = spread(strip.so,survey,observation)
+```
+
+
+```{r}
 # populated the 0's 
 a = ct %>% 
   filter(observation == 0) %>% 
@@ -433,9 +504,9 @@ b = dplyr::select(b,-c(good.survey,observation)) %>%
   rename(observation = true.observation)
 
 # combine the two
-ct.filled =rbind(a,b)
+ct.filled = rbind(a,b)
 ct.filled_a = 
-  dplyr::select(ct.filled,-c(replicate)) %>%    
+  dplyr::select(ct.filled, -c(replicate)) %>%    
   distinct(survey,
            grid,
            observation.date.time,
@@ -447,13 +518,18 @@ onlyOnes = filter(ct.filled_a, observation ==1)
 onlyZs = filter(ct.filled_a, observation == 0)
 reps = plyr::match_df(onlyZs, 
                       onlyOnes,
-                      on = c("deployment.ID"))
-
-# final filled has 68 unique levels - correct
+                      on = c("survey",
+                             "observation.date.time",
+                             "grid"))
+# subtract overlapping observations from the expanded set
 final.filled = setdiff(ct.filled_a, reps)
+final.filled$survey_id = cumsum(!duplicated(final.filled[2:4]))
+strip.ct = dplyr::select(final.filled,observation,survey,survey_id,grid)
+
 
 final.filled$deployment_ID = cumsum(!duplicated(final.filled[2:6]))
 strip.so = dplyr::select(final.filled,observation,survey,deployment_ID,grid)
+
 
 ct.so = spread(strip.so,survey,observation)
 View(ct.so)
@@ -517,7 +593,6 @@ summary(pb.occupancy)
 #sum(na.omit(pb.occupancy))
 ```
 
-
 ```{r}
 # set working directory
 #setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
@@ -554,17 +629,20 @@ so.detection =as.data.frame(alt)
 # Only use complete cases
 print("removing NA")
 is.complete=complete.cases(so.occupancy)&complete.cases(so.detection)&complete.cases(y.so)
-so.occupancy=so.occupancy[is.complete,]
-so.detection=so.detection[is.complete,]
-#y.so=y.so[is.complete,]
+
+
+# going down to 4 observations?
+# so.occupancy=so.occupancy[is.complete,]
+# so.detection=so.detection[is.complete,]
+# y.so=y.so[is.complete,] 
 area.so =pi*0.04
 
 #removing rasters to free the memory
-print('removing raster files')
-for (i in c(x.files,w.files)) {
-	do.call(remove,list(i))
-}
-remove(is.complete.pb,po,po.loc)
+# print('removing raster files')
+# for (i in c(x.files,w.files)) {
+# 	do.call(remove,list(i))
+# }
+# remove(is.complete.pb,po,yb.so,po.loc)
 ```
 
 ## Preparing the Data for the Integrated Model
@@ -590,25 +668,33 @@ s.area=area.back*nrow(X.back) #study area
 # adding column of ones - pb locations
 X.po=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
 W.po=cbind(rep(1, nrow(as.matrix(pb.detection))), pb.detection)
+```
 
+```{r}
 #Preparing Presence-Absence data ------------------------------------------------
 
-#add a column of ones to the PA covariat
 #y.so # matrix of presences and absences (when the species was and wasn't present)
+
+y.so <- y.so %>% select(-grid, -id.survey)
+J.so=ncol(y.so) # 98
+
+X.so=cbind(rep(1, nrow(as.matrix(so.occupancy))), so.occupancy)
+W.so = array(dim=c(nrow(as.matrix(so.detection)), J.so, 2))
+W.so[,,1] = 1
+# W.so[,,2] = so.detection# if it changes
+W.so[,,2]=so.detection[,1:2]# if it changes
+#sometimes this (the line below) runs, sometimes it doesnt 
+#W.so[,,3] = as.matrix(so.detection[,3:4])# if it changes
+
+
+
 J.so=ncol(y.so)
 X.so=cbind(rep(1, nrow(as.matrix(so.occupancy))), so.occupancy)
 W.so = array(dim=c(nrow(as.matrix(so.detection)), J.so, 3))
 W.so[,,1] = 1
-#this changes it to a list
+
 W.so[,,2] = as.matrix(so.detection[,1:2])# if it changes
-#sometimes this (the line below) runs, sometimes it doesnt 
-W.so[,,3] = as.matrix(so.detection[,3:4])# if it changes
-
-# W.so[,,2] = as.matrix(so.detection[,1:2])# if it changes
-#W.so[,,2] = so.detection# if it changes
-#sometimes this (the line below) runs, sometimes it doesnt 
-# W.so[,,3] = as.matrix(so.detection[,3:4])# if it changes
-
+# W.so[,,3] = so.detection[,3:4]# if it changes
 ```
 
 ## Analyzing Data 
