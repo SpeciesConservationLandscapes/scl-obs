@@ -1,0 +1,390 @@
+---
+title: "Integrated SDM"
+author: "Mari Roberts and Jessica Spencer"
+date: "12/12/2019"
+output: pdf_document
+---
+
+```{r}
+########################################
+# Load packages or install packages if they don't exist
+########################################
+
+requiredPackages = c('raster',
+                     'fields',
+                     'mvtnorm',
+                     'matrixStats', # matrix functions
+                     'readr', # read files
+                     'rgdal', 
+                     'ggplot2', # visualization
+                     'dplyr', # data manipularion
+                     'tidyverse',
+                     'rgbif', # import ad hoc data from GBIF
+                     'tidyr' # data tidying
+                     ) 
+for(p in requiredPackages){
+  if(!require(p,character.only = TRUE)) install.packages(p)
+  library(p,character.only = TRUE)
+}
+
+source("tiger/analysis-r/functions_modified.R") # read functions
+
+########################################
+# Import data
+########################################
+
+###
+# 1 Site Occupancy
+###
+
+s.o.original = read.csv("tiger/data/Tiger_observation_entry_9_SS_Observations_SUMATRA.csv")
+
+###
+# 2 Camera Trap
+###
+
+# BBSNP2015 CT data
+# Leuser data doesn't have observation date
+tiger.CT.observations <- read.csv("tiger/data/Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
+tiger.CT.entry <- read.csv("tiger/data/Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
+
+# tiger.CT.observations2 <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2.csv")
+# tiger.CT.entry2 <- read.csv("Tiger_observation_entry_9_CT_deployments_observations_Leuser_V2.csv")
+
+###
+# 3 Ad Hoc
+###
+
+pb.original <- read.csv("tiger/data/Ad Hoc v9 Sumatra 25NOV2019_V2.csv", skip = 1)
+pb.original <- pb.original %>% select(grid = cell.label, 
+                    observation.date,
+                    observation = Report)
+
+########################################
+# Sumatran Grid Cells
+########################################
+
+# import Sumatra shapefile of gridcells 
+unzip("tiger/data/sumatragridmrgd.zip")
+sumatra.map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
+
+# import shapefile of camera lat long and corresponding gridcells
+unzip("tiger/data/camera_latlon_gridcode.zip")
+camera.gridcode <- readOGR(dsn = ".", layer = "camera_latlon_gridcode")
+camera.gridcode <- as.data.frame(camera.gridcode)
+
+########################################
+# Shapefiles of Covariates
+########################################
+
+# prob.zip provided by Kim Fischer
+
+# # create list of all .shp files in folder (case of "shp" matters)
+filenames <- list.files(path="tiger/data/prob", pattern=".*shp")
+
+# read in each shp file
+for (i in 1:length(filenames)){
+  assign(filenames[i], rgdal::readOGR(paste("tiger/data/prob/", filenames[i], sep=''))
+  # figure out how to raster in this loop?
+  )}
+
+# convert to raster layer
+ct.hii <- raster(Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_hii.shp)
+ct.srtm<-raster(Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_srtm.shp)
+ct.hii.Leuser<-raster(Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2_hii.shp)
+ct.srtm.Leuser<-raster(Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2_srtm.shp)
+WibiPuspa_1000pts_hii.shp<-raster(WibiPuspa_1000pts_hii.shp)
+WibiPuspa_1000pts_srtm.shp<-raster(WibiPuspa_1000pts_srtm.shp)
+
+proj4string(sumatra.map) <- CRS('+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0')
+### cut Bioclim
+hii_crop <- crop(ct.hii, sumatra.map) #crop
+# extent(hii_crop) <- alignExtent(hii_crop, Prec) #Aligne extent
+hii_cut <- mask(hii_crop, sumatra.map)# mask
+
+# extent(sumatra.map)
+# class      : Extent 
+# xmin       : 94.95627 
+# xmax       : 106.89 
+# ymin       : -6.151896 
+# ymax       : 5.986419 
+
+# extent(ct.hii)
+# class      : Extent 
+# xmin       : 104.1226 
+# xmax       : 104.4494 
+# ymin       : -5.5655 
+# ymax       : -5.23826 
+
+########################################
+# s.occupancy
+# s.detection
+########################################
+
+# standarize using scale?
+s.occupancy <- stack(scale(hii_crop, center=TRUE, scale=TRUE))
+s.detection <- stack(scale(hii_crop, center=TRUE, scale=TRUE))
+
+########################################
+# so.occupancy
+# so.detection
+########################################
+
+so.occupancy <- read.csv("tiger/data/prob/Tiger_observation_entry_9_SS_Observations_SUMATRA_srtm_hii.csv")
+
+so.occupancy <- so.occupancy %>% select(grid.cell.label, 
+                                        elevation = sumatragridmrgd2_centroids_srtm_srtm_1,
+                                        hii = sumatragridmrgd2_centroids_hii_hii_1) %>% 
+                distinct(grid.cell.label, .keep_all = TRUE) %>% select(-grid.cell.label)
+
+# so.detection <- so.occupancy %>% select(elevation,
+#                                        hii)
+
+# plot to check ???
+# plot(s.occupancy) 
+
+########################################
+# Site occupancy data
+########################################
+
+# This section expands the dataframe so that there is a row for each time an area is surveyed. For example, if an area is surveyed 5 times, there are 5 rows for it, with the observation==1 on the times where a tiger or tiger signs were seen at the location in question. 
+
+# rename variables
+s.o.original = rename(s.o.original, 
+                      num.surveys = X..replicates.surveyed,
+                      grid = grid.cell.label, 
+                      replicate = replicate..)
+
+s.o.original = s.o.original %>% select(-survey.id) #same on every column
+
+#unique id on grid cel & replicate number
+s.o.original$id.survey = cumsum(!duplicated(s.o.original[2:4])) 
+
+max(s.o.original$num.surveys) #98
+
+# Take all the surveys with NO signs
+# create new row for each survey that took 
+a = s.o.original %>% 
+  filter(observation == 0) %>% 
+  crossing(survey =(1:98)) %>% #max number of surveys done
+  mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>% 
+  na.omit()
+a = dplyr::select(a,-c(good.survey))
+
+# expand the 1's
+b = s.o.original %>% 
+  filter(observation == 1) %>% 
+  select(-observation) %>% 
+  crossing(survey =(1:98)) %>% 
+  mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>%
+  na.omit() %>%
+  mutate(observation = ifelse(survey!=replicate, 0, 1))
+
+b = dplyr::select(b,-c(good.survey)) 
+#View(s.o.original)
+
+# combine the two
+so.filled =rbind(a,b)
+so.filled_a = 
+  dplyr::select(so.filled,-c(replicate)) %>%    
+  distinct(survey,
+           observation,
+           id.survey,
+           .keep_all = T)
+
+#find the overlapping observations
+onlyOnes = filter(so.filled_a, observation ==1)
+onlyZs = filter(so.filled_a, observation == 0)
+
+reps = plyr::match_df( 
+  onlyZs,onlyOnes,
+  on = c("id.survey","survey"))
+# subtract overlapping observations from the expanded set
+final.filled = setdiff(so.filled_a,reps)
+#final.filled$survey_id = cumsum(!duplicated(final.filled[2:4]))
+strip.so = dplyr::select(final.filled,observation,survey,grid, id.survey)
+
+# This next section will take that dataframe and turn it into a matrix of values. Each row will correspond to a survey.  If the survey happened 24 times, then the corresponding row will have 24 columns - either 0 or 1 - to denote whether a tiger was seen or not. The final dataframe is called *y.so*.
+# final site occupancy data
+y.so = spread(strip.so,survey,observation)
+
+# remove variables grid and id.survey
+y.so <- y.so %>% select(-grid, -id.survey)
+
+# # change NA's to zeros???
+# y.so[is.na(y.so)] <- 0
+
+test = matrix(0,ncol = 2, nrow = dim(y.so)[1])
+test[,1] = rowSums(ifelse(is.na(y.so)==FALSE,1,0)) # number of times zero or one
+test[,2] = rowSums(ifelse(is.na(y.so)==FALSE & y.so == 1,1,0)) # number of times tiger was seen 
+```
+
+```{r}
+# is.complete=complete.cases(so.occupancy)&complete.cases(test)
+
+is.complete = which(so.occupancy$hii != "NaN")
+
+so.occupancy = so.occupancy[is.complete,]# only use complete cases
+
+so.occupancy$elevation <- tr(so.occupancy$elevation)
+so.occupancy$hii <- tr(so.occupancy$hii)
+
+test=test[is.complete,]# only use complete cases
+# so.detection=so.detection[is.complete,]# only use complete cases
+# y.so=y.so[is.complete,]# only use complete cases
+area.so =pi*0.04
+```
+
+```{r}
+#y.so # matrix of presences and absences (when the species was and wasn't present)
+
+y.so <- test
+
+# J.so=ncol(y.so) 
+# so.detection has 2 columns and 381 rows
+# add column of 1s
+
+X.so=cbind(rep(1, nrow(as.matrix(so.occupancy))), so.occupancy) # 3 columns and 381 rows (2 columns are covariates)
+
+# something weird is happening here:
+# W.so = array(dim=c(nrow(as.matrix(so.detection)), J.so, 2))
+#  # W.so = array(381, 98, 2) #1:381, 1:98, 1:2
+# W.so[,,1] = 1  #1:381, 1:98, 1:2 - NAs in first 98 columns, add 1s. 381 rows total. 
+# W.so[,,2] = so.detection #  adds covariates to the remaining columns
+
+so.fit=so.model(X.so,y.so)
+
+# Error in 1:(dim(W.so)[3]) : argument of length 0
+
+printList(so.fit)
+# Parameter name       Value Standard error
+# 1              beta0  0.15590991     0.20371511
+# 2 Cobertura.prom.250  0.73820827     0.29841051
+# 3    Altura.prom.250  0.20520201     0.20230315
+# 4      NDVI.prom.250 -0.92107880     0.34450208
+# 5          alpha0.so -0.73419151     0.08253874
+# 6          alpha1.so -0.09435634     0.07897382
+# [1] 0
+# [1] 453.5224
+```
+
+# Presence Only Model
+
+
+```{r}
+
+# set working directory
+#setwd("/Users/mari/statistical_consulting/scl-obs/tiger/data")
+setwd("~/Desktop/SpeciesConservationLandscapes/scl-obs/tiger/data")
+########################################
+# Import Ad hoc data
+########################################
+
+# read csv of ad hoc data
+pb.original <- read.csv("Ad Hoc v9 Sumatra 25NOV2019_V2.csv", skip = 1)
+pb.original <- pb.original %>% select(grid = cell.label,
+                                      observation.date,
+                                      observation = Report)
+
+###############################
+# pb.occupancy - matrix with covariates that effect occupancy in the locations of detected presences 
+# pb.detection - matrix with covariates that effect detection in the locations of detected presences 
+###############################
+View(pb.original)
+shapefile.df <- fortify(sumatra.map)
+View(sumatra.map)
+points = rasterToPoints(shapefile.df)
+
+pb2.latlong <- pb2 %>% dplyr::select(camera.latitude,
+                              camera.longitude)
+
+# merge two dataframes of camera trap lat and long values
+pb.all <- merge(pb.latlong, pb2.latlong, all.x=TRUE, all.y=TRUE)
+head(pb.all)
+
+# spatial points
+# should be a list of lat and long values
+pb.loc=SpatialPoints(pb.all)
+
+
+# .rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
+# getting only NA values?
+
+pb.occupancy=raster::extract(x=s.occupancy,y=pb.loc)
+ #raster::extract(s.occupancy)
+pb.detection=raster::extract(s.detection,pb.loc)
+
+# lat/long values only
+pb.latlong <- pb %>% dplyr::select(camera.latitude,
+                            camera.longitude)
+
+```
+
+
+```{r}
+pb.occupancy=raster::extract(x=s.occupancy,y=pb.loc)
+ #raster::extract(s.occupancy)
+pb.detection=raster::extract(s.detection,pb.loc)
+is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
+pb.detection=pb.detection[is.complete.pb,]
+pb.occupancy=pb.occupancy[is.complete.pb,]
+# 1. Preparing the data ========================================================
+#Preparing Presence-Only data ------------------------------------------------
+
+#turning rasters into tables - background, adding column of ones
+X.back = cbind(rep(1, ncell(s.occupancy)), values(s.occupancy))
+colnames(X.back)=c("",names(s.occupancy))
+W.back = cbind(rep(1, ncell(s.detection)), values(s.detection))
+colnames(W.back)=c("",names(s.detection))
+# remove all NA values
+tmp=X.back[complete.cases(X.back)&complete.cases(W.back),]
+W.back=W.back[complete.cases(X.back)&complete.cases(W.back),]
+X.back=tmp
+
+#area in squared km -----------------------------------
+area.back = rep((xres(s.occupancy)/1000)*(yres(s.occupancy)/1000), nrow(X.back))# each cell
+s.area=area.back*nrow(X.back) #study area
+
+# adding column of ones - pb locations
+X.po=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
+W.po=cbind(rep(1, nrow(as.matrix(pb.detection))), pb.detection)
+```
+
+
+```{r}
+#Analyzing Presence-Only data
+pb.fit=pb.ipp(X.po, W.po,X.back, W.back)
+# print fitted models - by Roberts and Spencer
+printList <- function(list) {
+  for (item in 1:length(list)) {
+    print(head(list[[item]]))
+  }
+}
+ printList(pb.fit)
+# Parameter name     Value Standard error
+# 1          beta0 100.53398      21.180971
+# 2           alti  45.46510      10.128368
+# 3       bio12_23 -34.98480       8.255919
+# 4        bio1_23  14.18203       4.273356
+# 5         alpha0 -87.84936      21.218492
+# 6           alti -50.66090      10.115317
+# [1] 0
+# [1] -7761.442
+```
+
+# Integrated Model
+
+```{r}
+# Analyzing presence-only data AND presence-absence data
+poANDso.fit=pbso.integrated(X.po, W.po,X.back, W.back,X.so,W.so,y.so)
+printList(poANDso.fit)
+# Parameter name     Value Standard error
+# 1          beta0 103.65297             NA
+# 2           alti  45.68099             NA
+# 3       bio12_23 -35.95170             NA
+# 4        bio1_23  12.70863             NA
+# 5         alpha0 -90.97832             NA
+# 6           alti -50.84638             NA
+# [1] 0
+# [1] -7242.244
+```
