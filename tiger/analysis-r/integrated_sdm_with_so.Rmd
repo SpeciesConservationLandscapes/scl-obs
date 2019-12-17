@@ -9,7 +9,7 @@ output: pdf_document
 ########################################
 # Load packages or install packages if they don't exist
 ########################################
-
+setwd("../../")
 requiredPackages = c('raster',
                      'fields',
                      'mvtnorm',
@@ -292,39 +292,22 @@ pb.original <- pb.original %>% select(grid = cell.label,
 ###############################
 View(pb.original)
 shapefile.df <- fortify(sumatra.map)
-View(sumatra.map)
-points = rasterToPoints(shapefile.df)
-
-pb2.latlong <- pb2 %>% dplyr::select(camera.latitude,
-                              camera.longitude)
-
-# merge two dataframes of camera trap lat and long values
-pb.all <- merge(pb.latlong, pb2.latlong, all.x=TRUE, all.y=TRUE)
-head(pb.all)
+pb.all = raster::xyFromCell(raster(sumatra.map),pb.original$grid)
 
 # spatial points
 # should be a list of lat and long values
 pb.loc=SpatialPoints(pb.all)
-
-
-# .rs.unloadPackage("tidyr") # removes error message "no applicable method for "extract_"
-# getting only NA values?
 
 pb.occupancy=raster::extract(x=s.occupancy,y=pb.loc)
  #raster::extract(s.occupancy)
 pb.detection=raster::extract(s.detection,pb.loc)
 
 # lat/long values only
-pb.latlong <- pb %>% dplyr::select(camera.latitude,
-                            camera.longitude)
-
+pb.latlong <- pb.all
 ```
 
 
 ```{r}
-pb.occupancy=raster::extract(x=s.occupancy,y=pb.loc)
- #raster::extract(s.occupancy)
-pb.detection=raster::extract(s.detection,pb.loc)
 is.complete.pb=complete.cases(pb.detection)&complete.cases(pb.occupancy)
 pb.detection=pb.detection[is.complete.pb,]
 pb.occupancy=pb.occupancy[is.complete.pb,]
