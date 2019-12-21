@@ -20,7 +20,8 @@ requiredPackages = c('raster',
                      'dplyr', # data manipularion
                      'tidyverse',
                      'rgbif', # import ad hoc data from GBIF
-                     'tidyr' # data tidying
+                     'tidyr', # data tidying
+                     'shapefiles' #to read in WibiPuspa shapefiles
                      ) 
 for(p in requiredPackages){
   if(!require(p,character.only = TRUE)) install.packages(p)
@@ -48,8 +49,6 @@ s.o.original = read.csv("tiger/data/Tiger_observation_entry_9_SS_Observations_SU
 tiger.CT.observations <- read.csv("tiger/data/Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
 tiger.CT.entry <- read.csv("tiger/data/Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
 
-# tiger.CT.observations2 <- read.csv("Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2.csv")
-# tiger.CT.entry2 <- read.csv("Tiger_observation_entry_9_CT_deployments_observations_Leuser_V2.csv")
 
 ###
 # 3 Ad Hoc
@@ -93,8 +92,6 @@ ct.hii <- raster(Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_hii.shp)
 ct.srtm<-raster(Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_srtm.shp)
 ct.hii.Leuser<-raster(Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2_hii.shp)
 ct.srtm.Leuser<-raster(Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2_srtm.shp)
-WibiPuspa_1000pts_hii.shp<-raster(WibiPuspa_1000pts_hii.shp)
-WibiPuspa_1000pts_srtm.shp<-raster(WibiPuspa_1000pts_srtm.shp)
 
 proj4string(sumatra.map) <- CRS('+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0')
 ### cut Bioclim
@@ -135,13 +132,10 @@ so.occupancy <- read.csv("tiger/data/prob/Tiger_observation_entry_9_SS_Observati
 so.occupancy <- so.occupancy %>% select(grid.cell.label, 
                                         elevation = sumatragridmrgd2_centroids_srtm_srtm_1,
                                         hii = sumatragridmrgd2_centroids_hii_hii_1) %>% 
-                distinct(grid.cell.label, .keep_all = TRUE) %>% select(-grid.cell.label)
+                distinct(grid.cell.label, .keep_all = TRUE) 
 
-# so.detection <- so.occupancy %>% select(elevation,
-#                                        hii)
-
-# plot to check ???
-# plot(s.occupancy) 
+so.occupancy.grid = so.occupancy
+so.occupancy  = so.occupancy %>% select(-grid.cell.label)
 
 ########################################
 # Site occupancy data
@@ -217,10 +211,6 @@ y.so <- y.so %>% select(-grid, -id.survey)
 test = matrix(0,ncol = 2, nrow = dim(y.so)[1])
 test[,1] = rowSums(ifelse(is.na(y.so)==FALSE,1,0)) # number of times zero or one
 test[,2] = rowSums(ifelse(is.na(y.so)==FALSE & y.so == 1,1,0)) # number of times tiger was seen 
-```
-
-```{r}
-# is.complete=complete.cases(so.occupancy)&complete.cases(test)
 
 is.complete = which(so.occupancy$hii != "NaN")
 
@@ -233,29 +223,14 @@ test=test[is.complete,]# only use complete cases
 # so.detection=so.detection[is.complete,]# only use complete cases
 # y.so=y.so[is.complete,]# only use complete cases
 area.so =pi*0.04
-```
-
-```{r}
 #y.so # matrix of presences and absences (when the species was and wasn't present)
-
 y.so <- test
-
 # J.so=ncol(y.so) 
 # so.detection has 2 columns and 381 rows
 # add column of 1s
-
 X.so=cbind(rep(1, nrow(as.matrix(so.occupancy))), so.occupancy) # 3 columns and 381 rows (2 columns are covariates)
-
-# something weird is happening here:
-# W.so = array(dim=c(nrow(as.matrix(so.detection)), J.so, 2))
-#  # W.so = array(381, 98, 2) #1:381, 1:98, 1:2
-# W.so[,,1] = 1  #1:381, 1:98, 1:2 - NAs in first 98 columns, add 1s. 381 rows total. 
-# W.so[,,2] = so.detection #  adds covariates to the remaining columns
-
 so.fit=so.model(X.so,y.so)
-
 # Error in 1:(dim(W.so)[3]) : argument of length 0
-
 printList(so.fit)
 # Parameter name       Value Standard error
 # 1              beta0  0.15590991     0.20371511
@@ -286,24 +261,41 @@ pb.original <- pb.original %>% select(grid = cell.label,
                                       observation.date,
                                       observation = Report)
 
+# Load PB Covariates - from WibiPuspa, 1000 randomly sampled points
 ###############################
 # pb.occupancy - matrix with covariates that effect occupancy in the locations of detected presences 
 # pb.detection - matrix with covariates that effect detection in the locations of detected presences 
+
+#Presence Background Covariates ##############
+#HII 
+library(shapefiles)
+hii<-shapefiles::read.shapefile("../data/prob/WibiPuspa_1000pts_hii")
+
+proj4string(sumatra.map) <- CRS('+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0')
+#hii_raster = rasterize(WibiPuspa_hii,sumatra.map)
+hii_pb_crop = crop(hii,sumatra.map) #returns null
+hii_pb_cut = mask(hii,raster(sumatra.map)) #throws error bc null from crop
+
+#####SRTM
+srtm_shp = shapefile("tiger/data/prob/WibiPuspa_1000pts_srtm.shp")
+srtm_dbf<-foreign::read.dbf("tiger/data/prob/WibiPuspa_1000pts_srtm.dbf")
+srtm = merge(srtm_shp,srtm_dbf,by="srtm_1",duplicateGeoms = TRUE)
+
+######################################### standarize using scale?
+#works when converted to raster, but I don't believe that it 
+# is fitting properly over Sumatra. I never related it back to sumatra.map
+s.occupancy <- stack(scale(raster(WibiPuspa_hii), center=TRUE, scale=TRUE))
+s.detection <- stack(scale(raster(srtm), center=TRUE, scale=TRUE))
+
 ###############################
-View(pb.original)
 shapefile.df <- fortify(sumatra.map)
 pb.all = raster::xyFromCell(raster(sumatra.map),pb.original$grid)
-
 # spatial points
-# should be a list of lat and long values
-pb.loc=SpatialPoints(pb.all)
-
-pb.occupancy=raster::extract(x=s.occupancy,y=pb.loc)
+pb.loc=SpatialPoints(pb.all)# should be a list of lat and long values
+pb.occupancy=raster::extract(x=s.occupancy,y=pb.all)
  #raster::extract(s.occupancy)
 pb.detection=raster::extract(s.detection,pb.loc)
-
-# lat/long values only
-pb.latlong <- pb.all
+pb.latlong <- pb.all# lat/long values only
 ```
 
 
@@ -313,7 +305,6 @@ pb.detection=pb.detection[is.complete.pb,]
 pb.occupancy=pb.occupancy[is.complete.pb,]
 # 1. Preparing the data ========================================================
 #Preparing Presence-Only data ------------------------------------------------
-
 #turning rasters into tables - background, adding column of ones
 X.back = cbind(rep(1, ncell(s.occupancy)), values(s.occupancy))
 colnames(X.back)=c("",names(s.occupancy))
@@ -323,11 +314,9 @@ colnames(W.back)=c("",names(s.detection))
 tmp=X.back[complete.cases(X.back)&complete.cases(W.back),]
 W.back=W.back[complete.cases(X.back)&complete.cases(W.back),]
 X.back=tmp
-
 #area in squared km -----------------------------------
 area.back = rep((xres(s.occupancy)/1000)*(yres(s.occupancy)/1000), nrow(X.back))# each cell
 s.area=area.back*nrow(X.back) #study area
-
 # adding column of ones - pb locations
 X.po=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
 W.po=cbind(rep(1, nrow(as.matrix(pb.detection))), pb.detection)
@@ -335,7 +324,15 @@ W.po=cbind(rep(1, nrow(as.matrix(pb.detection))), pb.detection)
 
 
 ```{r}
-#Analyzing Presence-Only data
+#Attempt to simulate stuff for the pb.d and pb.o 
+#BUT pb.d and pb.o won't simulate like this bc. they have null values
+
+W.back = cbind(rep(1,nrow(as.matrix(s.detection))),rnorm(0,1,n=nrow(as.matrix(s.detection))))
+W.po = cbind(rep(1,nrow(as.matrix(pb.detection))),rnorm(0,1,n=nrow(as.matrix(pb.detection))))
+X.po = cbind(rep(1, nrow(as.matrix(pb.occupancy))), rnorm(3,1,n=nrow(as.matrix(pb.occupancy))))
+X.back = cbind(rep(1,nrow(as.matrix(s.occupancy))),rnorm(3,1,n=nrow(as.matrix(s.occupancy))))
+
+#the PO variables are null - throwing an error
 pb.fit=pb.ipp(X.po, W.po,X.back, W.back)
 # print fitted models - by Roberts and Spencer
 printList <- function(list) {
