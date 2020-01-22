@@ -31,33 +31,32 @@ predict=function(mymodel, X){
   return(lambda)
 }
 
+#############################################
+#############################################
+#############################################
 
-#Function that fits IPP model
-pb.ipp=function(X.po, W.po,X.back, W.back){
+#Function that fits IPP model - modified by SCL # removing W.
+pb.ipp=function(X.po, X.back){
   
   beta.names=colnames(X.back)
   beta.names[1]='beta0'
   
-  alpha.names=colnames(W.back)
-  alpha.names[1]='alpha0'
+  # alpha.names=colnames(W.back)
+  # alpha.names[1]='alpha0'
   
-  par.names=c(beta.names,	alpha.names)
-  
-  
+  par.names=c(beta.names,'alpha0')
   
   minrecipCondNum = 1e-6
-  paramGuess = c(rep(.1, ncol(X.po)), rep(-.1, ncol(W.po)))
+  paramGuess = c(rep(.1, ncol(X.po)), (-.1))
   
-  
-  fit.po = optim(par=paramGuess, fn=negLL.po, method='BFGS', hessian=FALSE
-                 , X.po=X.po, W.po=W.po,X.back=X.back,W.back=W.back ) # params for likelyhood function
-  
+  fit.po = optim(par=paramGuess, fn=negLL.po, method='BFGS', hessian=TRUE
+                 , X.po=X.po, X.back=X.back) # params for likelyhood function
   
   # calculating se with Hessian matrix
   recipCondNum.po = NA
   se.po = rep(NA, length(fit.po$par))
   if (fit.po$convergence==0) {
-    hess = ObsInfo.po(fit.po$par, X.po, W.po,X.back, W.back)
+    hess = fit.po$hessian
     ev = eigen(hess)$values
     recipCondNum.po = ev[length(ev)]/ev[1]
     if (recipCondNum.po>minrecipCondNum) {
@@ -78,6 +77,10 @@ pb.ipp=function(X.po, W.po,X.back, W.back){
   # print(p)
   return(p)
 }
+
+#############################################
+#############################################
+#############################################
 
 #Function that fits Mackenzie model - modified by SCL
 so.model=function(X.so,y.so){
@@ -184,34 +187,34 @@ negLL.pp = function(param) {
   (-1)*sum(logL.pp)
 }
 
-# negative loglikelihood function for thinned Poisson point process
-negLL.po = function(param, X.po, W.po,X.back, W.back) {
+# negative loglikelihood function for thinned Poisson point process - modified by SCL
+negLL.po = function(param, X.po, X.back) {
   
   beta = param[1:dim(X.po)[2]]
-  alpha = param[(dim(X.po)[2]+1):(dim(X.po)[2]+dim(W.po)[2])]
+  alpha = param[(dim(X.po)[2]+1):(dim(X.po)[2]+2)] # single alpha
   # dim(X.back)
   # length(beta)
   # length(area.back)
   lambda = exp(X.back %*% beta)
   mu = lambda * area.back
-  p = expit(W.back %*% alpha)
+  p = expit(alpha)
   
-  logL.po = sum(X.po %*% beta) + sum(W.po %*% alpha) - sum(log(1 + exp(W.po %*% alpha))) - sum(mu*p)
+  logL.po = sum(X.po %*% beta) + sum(alpha) - sum(log(1 + exp(alpha))) - sum(mu*p) # remove W.po - no variation
   
   (-1)*sum(logL.po)
 }
 
-# Observed hessian matrix of negative loglikelihood function for thinned Poisson point process
-ObsInfo.po = function(param, X.po,W.po,X.back, W.back) {
+# Observed hessian matrix of negative loglikelihood function for thinned Poisson point process - modified by SCL
+ObsInfo.po = function(param, X.po,X.back) {
   
   beta = param[1:dim(X.back)[2]]
-  alpha = param[(dim(X.back)[2]+1):(dim(X.back)[2]+dim(W.back)[2])]
+  alpha = param[(dim(X.back)[2]+1):(dim(X.back)[2]+2)]
   
   lambda = exp(X.back %*% beta)
   mu = lambda * area.back
-  p = expit(W.back %*% alpha)
+  p = expit(alpha)
   
-  p.po = expit(W.po %*% alpha)
+  p.po = expit(alpha)
   
   nxcovs = length(beta)
   nwcovs = length(alpha)
