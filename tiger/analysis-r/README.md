@@ -1,5 +1,7 @@
 # scl-obs
-R code for producing probability grids from observations
+R code for producing probability grids from observations.
+
+Only need to run analysis.R 
 
 ## Repository Structure
 
@@ -8,13 +10,12 @@ R code for producing probability grids from observations
 	  |-- analysis-r     	   
 		|-- gbig_idigbio_extraction.R   # GBIF iDigBio extraction code
 		
-		RUN IN THIS ORDER
-		|-- import.R   			# 1) import csvs and shapefiles
-		|-- pa.cleaning.R   		# 2) clean sign survey data
-		|-- pb.cleaning.R   		# 3) clean ad hoc data
-		|-- ct.cleaning.R   		# 4) clean camera trap data
-		|-- functions_modified.R        # 5) functions needed to run analysis.R below
-		|-- analysis.R   		# 6) pa,pb,integrted models
+		|-- import.R   			# import csvs and shapefiles
+		|-- pa.cleaning.R   		# clean sign survey data
+		|-- pb.cleaning.R   		# clean ad hoc data
+		|-- ct.cleaning.R   		# clean camera trap data
+		|-- functions_modified.R        # functions needed to run analysis.R below
+		|-- analysis.R   		# pa,pb,integrted models
 		
 	  |-- data                      	# shapefiles and csvs provided by tiger team
 	  
