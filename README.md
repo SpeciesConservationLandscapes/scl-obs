@@ -9,8 +9,6 @@ only need to run analysis.R
 	
 	  |-- analysis-r     	   
 		|-- gbig_idigbio_extraction.R   # GBIF iDigBio extraction code
-		
-		RUN IN THIS ORDER
 		|-- import.R   			# import csvs and shapefiles
 		|-- pa.cleaning.R   		# clean sign survey data
 		|-- pb.cleaning.R   		# clean ad hoc data
