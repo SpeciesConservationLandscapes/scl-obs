@@ -14,18 +14,20 @@ camera.gridcode <- camera.gridcode %>% select(grid=gridcode,
 # includes grids that had CT but no tiger was observed
 ct <- plyr::join(tiger.CT.entry, tiger.CT.observations, by = "deployment.ID", type = "full")
 
+# ct <- ct %>% date(as.Date(as.character(observation.date.time),format="%m/%d/%Y")
+
 # create a variable for the number of replicates per survey (one a day)
 # create new variables
 ct <- ct %>% mutate(# number of days between pick up and deployment
-  num.surveys = as.Date(as.character(pickup.date.time), 
+    num.surveys = as.Date(as.character(pickup.date.time), 
                         format="%Y/%m/%d")-
-    as.Date(as.character(deployment.date.time), 
-            format="%Y/%m/%d"),
+                  as.Date(as.character(deployment.date.time), 
+                          format="%Y/%m/%d"),
   # the day that the tiger was observed
-  replicate =   as.Date(as.character(pickup.date.time), 
+    replicate = as.Date(as.character(pickup.date.time), 
                         format="%Y/%m/%d")-
-    as.Date(as.character(observation.date.time), 
-            format="%m/%d/%Y"))
+                as.Date(as.character(observation.date.time), 
+                        format="%m/%d/%Y"))
 
 # remove camera locations where the camera was lost
 ct <- ct %>% filter(pickup.date.time != "NONE")
@@ -50,6 +52,9 @@ ct <- ct %>% select(num.surveys,
 # ct.count <- ct %>% group_by(replicate) %>% summarise(observation.count = sum(observation))
 # ct.merged <- merge(ct, ct.count, by="replicate") %>% select(-observation.date.time) %>% distinct()
 
+####### remove hour minutes
+ct$observation.date.time<-as.Date(as.POSIXct(ct$observation.date.time,format='%m/%d/%Y %H:%M'))
+
 # merge with CT data to see which grid cell the CT are in
 # distinct only? too many duplicates
 ct.merged <- merge(ct, camera.gridcode, by = c("camera.latitude","camera.longitude")) %>% distinct()
@@ -70,12 +75,12 @@ max(ct.merged$num.surveys) # 154 days
 
 # Take all the surveys with NO signs
 # create new row for each survey that took 
-a = ct.merged %>% 
+a <- ct.merged %>% 
   filter(observation == 0) %>% 
   crossing(survey =(1:154)) %>% #max number of surveys done
   mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>% 
   na.omit()
-a = dplyr::select(a,-c(good.survey))
+a <- dplyr::select(a,-c(good.survey))
 
 # expand the 1's
 b = ct.merged %>% 
