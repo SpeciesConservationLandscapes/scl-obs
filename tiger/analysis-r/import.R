@@ -102,22 +102,35 @@ WibiPuspa_1000pts_srtm.shp<-raster(WibiPuspa_1000pts_srtm.shp)
 # s.occupancy <- stack(scale(hii_crop, center=TRUE, scale=TRUE))
 # s.detection <- stack(scale(hii_crop, center=TRUE, scale=TRUE))
 
+# ad hoc
 s.occupancy <- read.csv("tiger/data/prob/Ad Hoc v9 Sumatra 25NOV2019_V2_singleheader_srtm_hii.csv")
 
 s.occupancy <- s.occupancy %>% select(cell.label, 
                                       elevation = sumatragridmrgd2_centroids_srtm_srtm_1,
                                       hii = sumatragridmrgd2_centroids_hii_hii_1) %>% 
-               distinct(cell.label, .keep_all = TRUE) %>% select(-cell.label)
+               distinct(cell.label, .keep_all = TRUE) 
 
 ########################################
 ## so.occupancy - matrix with covariates that effect occupancy in the locations of pa survey sites
 ## so.detection - matrix with covariates that effect detection in the locations of pa survey sites in each survey
 ########################################
 
+# site occupancy
 so.occupancy <- so.occupancy %>% select(grid.cell.label, 
                                         elevation = sumatragridmrgd2_centroids_srtm_srtm_1,
                                         hii = sumatragridmrgd2_centroids_hii_hii_1) %>% 
   distinct(grid.cell.label, .keep_all = TRUE) %>% select(-grid.cell.label)
 
-# so.detection <- so.occupancy %>% select(elevation,
-#                                        hii)
+# camera trap
+ct.occupancy.hii <- readOGR(dsn = "tiger/data/prob/", layer = "Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_hii")
+ct.occupancy.hii <- as.data.frame(ct.occupancy.hii)
+ct.occupancy.hii <- ct.occupancy.hii %>% select(camera.latitude=camera.lat,
+                                                  camera.longitude=camera.lon,
+                                                  hii = hii_1)
+
+ct.occupancy.srtm <- readOGR(dsn = "tiger/data/prob/", layer = "Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_srtm")
+ct.occupancy.srtm <- as.data.frame(ct.occupancy.srtm)
+ct.occupancy.srtm <- ct.occupancy.srtm %>% select(camera.latitude=camera.lat,
+                                                camera.longitude=camera.lon,
+                                                srtm = srtm_1)
+
