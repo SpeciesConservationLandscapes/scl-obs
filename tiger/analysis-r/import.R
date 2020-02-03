@@ -29,9 +29,10 @@ for(p in requiredPackages){
 # 1 Site Occupancy
 ###
 
-# 394 unique grid cells
+# 394 unique grid cells, 811 obs
 s.o.original = read.csv("tiger/data/Tiger_observation_entry_9_SS_Observations_SUMATRA.csv")
 
+# 394 unique grid cells, 811 obs
 so.occupancy <- read.csv("tiger/data/prob/Tiger_observation_entry_9_SS_Observations_SUMATRA_srtm_hii.csv")
 
 ###
@@ -39,12 +40,13 @@ so.occupancy <- read.csv("tiger/data/prob/Tiger_observation_entry_9_SS_Observati
 ###
 
 # BBSNP2015 CT data
-# 8 unique grid cells
+# 31 unique deployments
 tiger.CT.observations <- read.csv("tiger/data/Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
+# 68 unique deployments
 tiger.CT.entry <- read.csv("tiger/data/Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
 
 # Leuser data doesn't have observation date
-tiger.CT.observations2 <- read.csv("tiger/data/Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2.csv")
+# tiger.CT.observations2 <- read.csv("tiger/data/Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2.csv")
 # tiger.CT.entry2 <- read.csv("tiger/data/Tiger_observation_entry_9_CT_deployments_observations_Leuser_V2.csv")
 
 ###
@@ -63,7 +65,7 @@ unzip("tiger/data/sumatragridmrgd.zip")
 sumatra.map <- readOGR(dsn = ".", layer = "sumatragridmrgd")
 
 # import shapefile of camera lat long and corresponding grid cells
-# only includes grid cells for Puspurini data, not Leuser - 8 unique grid cells
+# only includes grid cells for Puspurini data, not Leuser - 8 unique grid cells, 63 unique lat/lon values
 unzip("tiger/data/camera_latlon_gridcode.zip")
 camera.gridcode <- readOGR(dsn = ".", layer = "camera_latlon_gridcode")
 camera.gridcode <- as.data.frame(camera.gridcode)
@@ -83,22 +85,13 @@ for (i in 1:length(filenames)){
          # figure out how to raster in this loop?
   )}
 
-# convert to raster layer
-ct.hii <- raster(Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_hii.shp)
-ct.srtm<-raster(Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_srtm.shp)
-ct.hii.Leuser<-raster(Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2_hii.shp)
-ct.srtm.Leuser<-raster(Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2_srtm.shp)
-
-# we need one covariate value per grid point? 
-WibiPuspa_1000pts_hii.shp<-raster(WibiPuspa_1000pts_hii.shp)
-WibiPuspa_1000pts_srtm.shp<-raster(WibiPuspa_1000pts_srtm.shp)
 
 ########################################
 ## s.occupancy - raster with background covatiates that effect occupancy
 ## s.detection - raster with background covariates that effect detection
 ########################################
 
-# standarize using scale?
+# standarize using scale
 # s.occupancy <- stack(scale(hii_crop, center=TRUE, scale=TRUE))
 # s.detection <- stack(scale(hii_crop, center=TRUE, scale=TRUE))
 
