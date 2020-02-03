@@ -11,10 +11,13 @@ camera.gridcode <- camera.gridcode %>% select(grid=gridcode,
                                               camera.latitude,
                                               camera.longitude)
 
-# includes grids that had CT but no tiger was observed
-ct <- plyr::join(tiger.CT.entry, tiger.CT.observations, by = "deployment.ID", type = "full")
+# covariates
+ct.occupancy.hii <- merge(ct.occupancy.hii, camera.gridcode, by = c("camera.latitude","camera.longitude")) %>% distinct()
+ct.occupancy.srtm <- merge(ct.occupancy.srtm, camera.gridcode, by = c("camera.latitude","camera.longitude")) %>% distinct()
+ct.occupancy <- full_join(ct.occupancy.hii, ct.occupancy.srtm, by = c("grid","camera.latitude","camera.longitude"))
 
-# ct <- ct %>% date(as.Date(as.character(observation.date.time),format="%m/%d/%Y")
+# camera trap data
+ct <- plyr::join(tiger.CT.entry, tiger.CT.observations, by = "deployment.ID", type = "full")
 
 # create a variable for the number of replicates per survey (one a day)
 # create new variables
@@ -55,9 +58,11 @@ ct <- ct %>% select(num.surveys,
 ####### remove hour minutes
 ct$observation.date.time<-as.Date(as.POSIXct(ct$observation.date.time,format='%m/%d/%Y %H:%M'))
 
-# merge with CT data to see which grid cell the CT are in
-# distinct only? too many duplicates
+# merge
 ct.merged <- merge(ct, camera.gridcode, by = c("camera.latitude","camera.longitude")) %>% distinct()
+
+ct.merged <- inner_join(ct.occupancy, ct.merged, by = c("grid","camera.latitude","camera.longitude"))
+
 ct.merged <- ct.merged %>% select(num.surveys, grid, observation.date.time, observation, replicate)
 
 #unique id on grid cell & replicate number
@@ -126,19 +131,19 @@ temp[,1] = rowSums(ifelse(is.na(y.ct)==FALSE,1,0)) # number of times zero or one
 temp[,2] = rowSums(ifelse(is.na(y.ct)==FALSE & y.ct == 1,1,0)) # number of times tiger was seen 
 
 # remove NaNs
-is.complete = which(so.occupancy$hii != "NaN")
-
-# only use complete cases
-so.occupancy = so.occupancy[is.complete,]
+# is.complete = which(ct.occupancy.hii$hii != "NaN")
+# 
+# # only use complete cases
+# ct.occupancy.hii = ct.occupancy.hii[is.complete,]
 
 # standardize covariates
-so.occupancy$elevation <- tr(so.occupancy$elevation)
-so.occupancy$hii <- tr(so.occupancy$hii)
+ct.occupancy$srtm <- tr(ct.occupancy$srtm)
+ct.occupancy$hii <- tr(ct.occupancy$hii)
 
 # temp=temp[is.complete,]# only use complete cases
 
-y.ct <- temp
+y.so <- temp
 
 area.so =pi*0.04
 
-X.ct=cbind(rep(1, nrow(as.matrix(so.occupancy))), so.occupancy) # 3 columns and 381 rows (2 columns are covariates)
+X.so=cbind(rep(1, nrow(as.matrix(so.occupancy))), so.occupancy) # 3 columns and 381 rows (2 columns are covariates)
