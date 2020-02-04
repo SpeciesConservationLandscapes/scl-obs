@@ -18,7 +18,9 @@ camera.gridcode <- camera.gridcode %>% select(grid=gridcode,
 # merge covariates into one dataframe, similar to so.occupancy in the so model
 ct.occupancy.hii <- merge(ct.occupancy.hii, camera.gridcode, by = c("camera.latitude","camera.longitude")) %>% distinct()
 ct.occupancy.srtm <- merge(ct.occupancy.srtm, camera.gridcode, by = c("camera.latitude","camera.longitude")) %>% distinct()
-ct.occupancy <- full_join(ct.occupancy.hii, ct.occupancy.srtm, by = c("grid","camera.latitude","camera.longitude"))
+#rename columns so they can match on grid level?
+#YES this now has 63
+ct.occupancy <- full_join(ct.occupancy.hii, ct.occupancy.srtm, by = c("grid.x","camera.latitude","camera.longitude"))
 
 # camera trap data
 # unique(ct$deployment.ID)
@@ -43,6 +45,7 @@ ct <- ct %>% mutate(# number of days between pick up and deployment
 # remove camera locations where the camera was lost
 # 68 unique deployment IDs, 63 unique lat/lon...HOW?!
 ct <- ct %>% filter(pickup.date.time != "NONE")
+temp <-ct
 
 # add 0s for where a camera wasn't observed (listed as NAs)
 ct$observation.date.time <- as.character(ct$observation.date.time)
@@ -154,8 +157,10 @@ ct.occupancy$hii <- tr(ct.occupancy$hii)
 # temp=temp[is.complete,]# only use complete cases
 
 # the issue here is that we have 58 rows instead of 63...
+#now we have 66?
 y.so <- temp
 
 area.so =pi*0.04
 
 X.so=cbind(rep(1, nrow(as.matrix(ct.occupancy))), ct.occupancy) 
+
