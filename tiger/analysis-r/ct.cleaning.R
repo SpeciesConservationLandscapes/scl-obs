@@ -2,7 +2,37 @@
 # Camera trap data
 ########################################
 
+#####################
+# import
+#####################
 # "num.surveys" "grid" "observation" "replicate" "id.survey" 
+
+# BBSNP2015 CT data
+# 31 unique deployments
+tiger.CT.observations <- read.csv("tiger/data/Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
+# 68 unique deployments
+tiger.CT.entry <- read.csv("tiger/data/Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
+
+ct.occupancy.hii <- readOGR(dsn = "tiger/data/prob/", layer = "Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_hii")
+ct.occupancy.hii <- as.data.frame(ct.occupancy.hii)
+ct.occupancy.hii <- ct.occupancy.hii %>% select(camera.latitude=camera.lat,
+                                                camera.longitude=camera.lon,
+                                                hii = hii_1)
+ct.occupancy.srtm <- readOGR(dsn = "tiger/data/prob/", layer = "Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_srtm")
+ct.occupancy.srtm <- as.data.frame(ct.occupancy.srtm)
+ct.occupancy.srtm <- ct.occupancy.srtm %>% select(camera.latitude=camera.lat,
+                                                  camera.longitude=camera.lon,
+                                                  srtm = srtm_1)
+ct.shp <- readOGR(dsn = "tiger/data/prob 2", layer = "Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_celllabels")
+ct.shp.df <- as.data.frame(ct.shp)
+
+unzip("tiger/data/camera_latlon_gridcode.zip")
+camera.gridcode <- readOGR(dsn = ".", layer = "camera_latlon_gridcode")
+camera.gridcode <- as.data.frame(camera.gridcode)
+
+#####################
+# clean data
+#####################
 
 # rename variables with Kim's gridcell shapefile
 # 63 unique lat/lon values
@@ -12,17 +42,37 @@ camera.gridcode <- camera.gridcode %>% mutate(camera.latitude = lat,
 camera.gridcode <- camera.gridcode %>% select(gridcode,
                                               camera.latitude,
                                               camera.longitude)
+unique(camera.gridcode$gridcode) # 8 unique grid cells
+unique(camera.gridcode$camera.longitude) # 63 unique lat/lon values
 
-ct.occupancy <- ct.occupancy %>% mutate(deployment.ID = deployment,
-                                        pickup.date.time = pickup.dat,
-                                        deplpyment.date.time = deployme_1,
-                                        camera.latitude = camera.lat,
-                                        camera.longitude = camera.lon) %>% select(-grid)
+ct.shp.df <- ct.shp.df %>% mutate(deployment.ID = deployment,
+                                  pickup.date.time = pickup.dat,
+                                  deplpyment.date.time = deployme_1,
+                                  camera.latitude = camera.lat,
+                                  camera.longitude = camera.lon) %>% select(-grid)
+unique(ct.shp.df$camera.lon) # 68 unique lat/lon values
 
-ct <- plyr::join(ct.occupancy, tiger.CT.observations, by = "deployment.ID", type = "full")
-unique(ct$deployment.ID) # 68 unique deployments
+# remove missing cameras
+# 63 obs
+ct.shp.df <- ct.shp.df %>% filter(deployment.ID != c("BBS-2015-Loc-36") &
+                                    deployment.ID != c("BBS-2015-Loc-37") &
+                                    deployment.ID != c("BBS-2015-Loc-11")&
+                                    deployment.ID != c("BBS-2015-Loc-12")&
+                                    deployment.ID != c("BBS-2015-Loc-41"))
+
+# tiger.CT.observations <- tiger.CT.observations %>% filter(deployment.ID != c("BBS-2015-Loc-36") &
+#                                                           deployment.ID != c("BBS-2015-Loc-37") &
+#                                                           deployment.ID != c("BBS-2015-Loc-11")&
+#                                                           deployment.ID != c("BBS-2015-Loc-12")&
+#                                                           deployment.ID != c("BBS-2015-Loc-41"))
+
+# merge dfs to get observation times, pick up, deployment, and gridcode in one df
+ct <- left_join(ct.shp.df, tiger.CT.observations, by = "deployment.ID")
+# ct <- plyr::join(ct.shp.df, tiger.CT.observations, by = "deployment.ID", type = "full")
+
+unique(ct$deployment.ID) # 63 unique deployments
 unique(ct$gridcode) # 8 unique grid cells
-unique(ct$camera.latitude) # 68 unique lat/lon values
+unique(ct$camera.latitude) # 63 unique lat/lon values
 
 # create a variable for the number of replicates per survey (one a day)
 # create new variables
@@ -39,11 +89,11 @@ ct <- ct %>% mutate(# number of days between pick up and deployment
                         format="%m/%d/%Y"))
 
 # remove camera locations where the camera was lost
-# 68 unique deployment IDs, 63 unique lat/lon...HOW?!
-# ct <- ct %>% filter(pickup.dat != "NONE") # Removes 5
-unique(ct$deployment.ID) # 68 unique deployments
+# 63 unique deployment IDs, 63 unique lat/lon
+ct <- ct %>% filter(pickup.dat != "NONE") # Removes 5
+unique(ct$deployment.ID) # 63 unique deployments
 unique(ct$gridcode) # 8 unique grid cells
-unique(ct$camera.latitude) # 68 unique lat/lon values
+unique(ct$camera.latitude) # 63 unique lat/lon values
 
 # add 0s for where a camera wasn't observed (listed as NAs)
 ct$observation.date.time <- as.character(ct$observation.date.time)
@@ -55,17 +105,21 @@ ct$replicate <- as.character(ct$replicate)
 ct$replicate[is.na(ct$replicate)] <- 0
 
 # merge covariates into one dataframe, similar to so.occupancy in the so model
+# 63 observations
 ct.occupancy.hii <- merge(ct.occupancy.hii, camera.gridcode, by = c("camera.latitude","camera.longitude")) %>% distinct()
 ct.occupancy.srtm <- merge(ct.occupancy.srtm, camera.gridcode, by = c("camera.latitude","camera.longitude")) %>% distinct()
 ct.occupancy <- full_join(ct.occupancy.hii, ct.occupancy.srtm, by = c("gridcode","camera.latitude","camera.longitude"))
 
-ct.occupancy <- full_join(ct, ct.occupancy, by = c("gridcode","camera.latitude","camera.longitude"))
+temp <- merge(ct, ct.occupancy, by = c("gridcode","camera.latitude","camera.longitude")) 
+unique(temp$deployment.ID) # 68 unique deployments
+unique(temp$gridcode) # 8 unique grid cells
+unique(temp$camera.latitude) # 63 unique lat/lon values
 
-ct <- ct.occupancy %>% select(num.surveys,
-                              gridcode,
-                              observation.date.time, 
-                              observation, 
-                              replicate)
+ct <- temp %>% select(num.surveys,
+                      gridcode,
+                      observation.date.time, 
+                      observation, 
+                      replicate)
 
 # replicate and observation.count
 # ct.count <- ct %>% group_by(replicate) %>% summarise(observation.count = sum(observation))
@@ -84,6 +138,13 @@ ct$id.survey = cumsum(!duplicated(ct[2:4]))
 ct.merged <- ct 
 
 max(ct.merged$num.surveys) # 154 days expanded
+ct.merged <- ct.merged %>% select(num.surveys,
+                                  grid = gridcode,
+                                  observation,
+                                  replicate,
+                                  id.survey)
+
+#"num.surveys" "grid"        "start.date"  "observation" "replicate"   "id.survey" 
 
 # Take all the surveys with NO signs
 # create new row for each survey that took 
@@ -125,12 +186,12 @@ reps = plyr::match_df(
 # subtract overlapping observations from the expanded set
 final.filled = setdiff(so.filled_a,reps)
 
-strip.so = dplyr::select(final.filled,observation,survey,gridcode, id.survey)
+strip.so = dplyr::select(final.filled,observation,survey,grid, id.survey)
 
 y.ct = spread(strip.so, survey, observation)
 
 # remove variables grid and id.survey
-y.ct <- y.ct %>% select(-gridcode, -id.survey)
+y.ct <- y.ct %>% select(-grid, -id.survey)
 
 # exactly what we did in the so model
 # create new table with only two columns
@@ -141,7 +202,7 @@ temp[,2] = rowSums(ifelse(is.na(y.ct)==FALSE & y.ct == 1,1,0)) # number of times
 # remove NaNs
 # is.complete = which(ct.occupancy.hii$hii != "NaN")
 # 
-# # only use complete cases
+# # # only use complete cases
 # ct.occupancy.hii = ct.occupancy.hii[is.complete,]
 
 # standardize covariates using tr function from functions_modified.R
@@ -150,9 +211,12 @@ temp[,2] = rowSums(ifelse(is.na(y.ct)==FALSE & y.ct == 1,1,0)) # number of times
 
 # temp=temp[is.complete,]# only use complete cases
 
-# the issue here is that we have 57 rows instead of 63 or 68...
+# the issue here is that we have 57 rows instead of 63
 y.ct <- temp
 
 area.so =pi*0.04
 
+# 63 
 X.ct=cbind(rep(1, nrow(as.matrix(ct.occupancy))), ct.occupancy) 
+
+# X.ct and y.ct should have same number of rows
