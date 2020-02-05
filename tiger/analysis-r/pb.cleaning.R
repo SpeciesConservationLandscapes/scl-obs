@@ -139,4 +139,3 @@ pb.fit=pb.ipp(X.po, W.po, X.back, W.back)
 # X.pb=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
 # W.pb=cbind(rep(1, nrow(as.matrix(pb.detection))), pb.detection)
 
-
