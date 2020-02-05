@@ -212,11 +212,13 @@ temp[,2] = rowSums(ifelse(is.na(y.ct)==FALSE & y.ct == 1,1,0)) # number of times
 # temp=temp[is.complete,]# only use complete cases
 
 # the issue here is that we have 57 rows instead of 63
-y.ct <- temp
+y.so <- temp
 
 area.so =pi*0.04
 
-# 63 
-X.ct=cbind(rep(1, nrow(as.matrix(ct.occupancy))), ct.occupancy) 
+# 
+ct.occupancy <- ct.occupancy %>% select(hii,
+                                        srtm)
+X.so=cbind(rep(1, nrow(as.matrix(ct.occupancy))), ct.occupancy) 
 
 # X.ct and y.ct should have same number of rows
