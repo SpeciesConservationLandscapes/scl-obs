@@ -74,6 +74,10 @@ camera.gridcode <- as.data.frame(camera.gridcode)
 # Shapefiles of Covariates
 ########################################
 
+# import ad hoc data with covariate information
+unzip("tiger/data/obs_celllabels.zip")
+ad.hoc <- read.csv("tiger/data/prob 2/Ad Hoc v9 Sumatra 25NOV2019_V2_singleheader_srtm_hii.csv")
+
 # prob.zip provided by Kim Fischer
 
 # # create list of all .shp files in folder (case of "shp" matters)
@@ -114,7 +118,6 @@ so.occupancy <- so.occupancy %>% select(grid.cell.label,
                                         hii = sumatragridmrgd2_centroids_hii_hii_1) %>% 
   distinct(grid.cell.label, .keep_all = TRUE) %>% select(-grid.cell.label)
 
-# camera trap
 ct.occupancy.hii <- readOGR(dsn = "tiger/data/prob/", layer = "Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_hii")
 ct.occupancy.hii <- as.data.frame(ct.occupancy.hii)
 ct.occupancy.hii <- ct.occupancy.hii %>% select(camera.latitude=camera.lat,
@@ -127,3 +130,5 @@ ct.occupancy.srtm <- ct.occupancy.srtm %>% select(camera.latitude=camera.lat,
                                                 camera.longitude=camera.lon,
                                                 srtm = srtm_1)
 
+ct.occupancy <- readOGR(dsn = "tiger/data/prob 2", layer = "Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_celllabels")
+ct.occupancy <- as.data.frame(ct.occupancy)
