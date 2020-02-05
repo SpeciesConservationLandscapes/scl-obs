@@ -9,24 +9,20 @@
 # we need this file to merge with camera trap observations to see which grid cell the camera is in
 camera.gridcode <- camera.gridcode %>% mutate(camera.latitude = lat, 
                                               camera.longitude = lon)
-camera.gridcode <- camera.gridcode %>% select(grid=gridcode,
+camera.gridcode <- camera.gridcode %>% select(gridcode,
                                               camera.latitude,
                                               camera.longitude)
 
-# covariates
-# 63 unique lat/lon values
-# merge covariates into one dataframe, similar to so.occupancy in the so model
-ct.occupancy.hii <- merge(ct.occupancy.hii, camera.gridcode, by = c("camera.latitude","camera.longitude")) %>% distinct()
-ct.occupancy.srtm <- merge(ct.occupancy.srtm, camera.gridcode, by = c("camera.latitude","camera.longitude")) %>% distinct()
-#rename columns so they can match on grid level?
-#YES this now has 63
-ct.occupancy <- full_join(ct.occupancy.hii, ct.occupancy.srtm, by = c("grid.x","camera.latitude","camera.longitude"))
+ct.occupancy <- ct.occupancy %>% mutate(deployment.ID = deployment,
+                                        pickup.date.time = pickup.dat,
+                                        deplpyment.date.time = deployme_1,
+                                        camera.latitude = camera.lat,
+                                        camera.longitude = camera.lon) %>% select(-grid)
 
-# camera trap data
-# unique(ct$deployment.ID)
-# 68 unique deployment IDs (more than camera.gridcode...)
-# get observation times and camera info in one dataframe
-ct <- plyr::join(tiger.CT.entry, tiger.CT.observations, by = "deployment.ID", type = "full")
+ct <- plyr::join(ct.occupancy, tiger.CT.observations, by = "deployment.ID", type = "full")
+unique(ct$deployment.ID) # 68 unique deployments
+unique(ct$gridcode) # 8 unique grid cells
+unique(ct$camera.latitude) # 68 unique lat/lon values
 
 # create a variable for the number of replicates per survey (one a day)
 # create new variables
@@ -34,7 +30,7 @@ ct <- plyr::join(tiger.CT.entry, tiger.CT.observations, by = "deployment.ID", ty
 ct <- ct %>% mutate(# number of days between pick up and deployment
     num.surveys = as.Date(as.character(pickup.date.time), 
                         format="%Y/%m/%d")-
-                  as.Date(as.character(deployment.date.time), 
+                  as.Date(as.character(deplpyment.date.time), 
                           format="%Y/%m/%d"),
   # the day that the tiger was observed
     replicate = as.Date(as.character(pickup.date.time), 
@@ -44,8 +40,10 @@ ct <- ct %>% mutate(# number of days between pick up and deployment
 
 # remove camera locations where the camera was lost
 # 68 unique deployment IDs, 63 unique lat/lon...HOW?!
-ct <- ct %>% filter(pickup.date.time != "NONE")
-temp <-ct
+# ct <- ct %>% filter(pickup.dat != "NONE") # Removes 5
+unique(ct$deployment.ID) # 68 unique deployments
+unique(ct$gridcode) # 8 unique grid cells
+unique(ct$camera.latitude) # 68 unique lat/lon values
 
 # add 0s for where a camera wasn't observed (listed as NAs)
 ct$observation.date.time <- as.character(ct$observation.date.time)
@@ -56,12 +54,18 @@ ct <- ct %>% mutate(observation = ifelse(observation.date.time == 0, 0, 1))
 ct$replicate <- as.character(ct$replicate)
 ct$replicate[is.na(ct$replicate)] <- 0
 
-ct <- ct %>% select(num.surveys, 
-                    observation.date.time, 
-                    observation, 
-                    replicate, 
-                    camera.latitude, 
-                    camera.longitude)
+# merge covariates into one dataframe, similar to so.occupancy in the so model
+ct.occupancy.hii <- merge(ct.occupancy.hii, camera.gridcode, by = c("camera.latitude","camera.longitude")) %>% distinct()
+ct.occupancy.srtm <- merge(ct.occupancy.srtm, camera.gridcode, by = c("camera.latitude","camera.longitude")) %>% distinct()
+ct.occupancy <- full_join(ct.occupancy.hii, ct.occupancy.srtm, by = c("gridcode","camera.latitude","camera.longitude"))
+
+ct.occupancy <- full_join(ct, ct.occupancy, by = c("gridcode","camera.latitude","camera.longitude"))
+
+ct <- ct.occupancy %>% select(num.surveys,
+                              gridcode,
+                              observation.date.time, 
+                              observation, 
+                              replicate)
 
 # replicate and observation.count
 # ct.count <- ct %>% group_by(replicate) %>% summarise(observation.count = sum(observation))
@@ -70,24 +74,14 @@ ct <- ct %>% select(num.surveys,
 # remove hour minutes
 ct$observation.date.time<-as.Date(as.POSIXct(ct$observation.date.time,format='%m/%d/%Y %H:%M'))
 
-# merge Kim's gridcode file to see which grid cell the camera is in
-ct.merged <- merge(ct, camera.gridcode, by = c("camera.latitude","camera.longitude")) %>% distinct()
-ct.merged <- inner_join(ct.occupancy, ct.merged, by = c("grid","camera.latitude","camera.longitude"))
-ct.merged <- ct.merged %>% select(num.surveys, grid, observation.date.time, observation, replicate, hii, srtm)
-
 #unique id on grid cell & replicate number
-ct.merged$id.survey = cumsum(!duplicated(ct.merged[2:4])) 
+ct$id.survey = cumsum(!duplicated(ct[2:4])) 
 
 # create dataframe of covariates per observation
-ct.occupancy <- ct.merged %>% select(hii, srtm)
+# ct.occupancy <- ct.occupancy %>% select(hii, srtm)
 
 # drop variables 
-ct.merged <- ct.merged %>% select(num.surveys,
-                                  grid,
-                                  observation.date.time,
-                                  observation,
-                                  replicate,
-                                  id.survey)
+ct.merged <- ct 
 
 max(ct.merged$num.surveys) # 154 days expanded
 
@@ -131,12 +125,12 @@ reps = plyr::match_df(
 # subtract overlapping observations from the expanded set
 final.filled = setdiff(so.filled_a,reps)
 
-strip.so = dplyr::select(final.filled,observation,survey,grid, id.survey)
+strip.so = dplyr::select(final.filled,observation,survey,gridcode, id.survey)
 
 y.ct = spread(strip.so, survey, observation)
 
 # remove variables grid and id.survey
-y.ct <- y.ct %>% select(-grid, -id.survey)
+y.ct <- y.ct %>% select(-gridcode, -id.survey)
 
 # exactly what we did in the so model
 # create new table with only two columns
@@ -151,16 +145,14 @@ temp[,2] = rowSums(ifelse(is.na(y.ct)==FALSE & y.ct == 1,1,0)) # number of times
 # ct.occupancy.hii = ct.occupancy.hii[is.complete,]
 
 # standardize covariates using tr function from functions_modified.R
-ct.occupancy$srtm <- tr(ct.occupancy$srtm)
-ct.occupancy$hii <- tr(ct.occupancy$hii)
+# ct.occupancy$srtm <- tr(ct.occupancy$srtm)
+# ct.occupancy$hii <- tr(ct.occupancy$hii)
 
 # temp=temp[is.complete,]# only use complete cases
 
-# the issue here is that we have 58 rows instead of 63...
-#now we have 66?
-y.so <- temp
+# the issue here is that we have 57 rows instead of 63 or 68...
+y.ct <- temp
 
 area.so =pi*0.04
 
-X.so=cbind(rep(1, nrow(as.matrix(ct.occupancy))), ct.occupancy) 
-
+X.ct=cbind(rep(1, nrow(as.matrix(ct.occupancy))), ct.occupancy) 
