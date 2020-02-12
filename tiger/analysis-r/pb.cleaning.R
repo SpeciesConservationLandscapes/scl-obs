@@ -12,23 +12,6 @@
 ## so.detection - matrix with covariates that effect detection in the locations of PA survey sites in each survey
 ########################################
 
-requiredPackages = c('raster',
-                     'fields',
-                     'mvtnorm',
-                     'matrixStats', # matrix functions
-                     'readr', # read files
-                     'rgdal', 
-                     'ggplot2', # visualization
-                     'dplyr', # data manipularion
-                     'tidyverse',
-                     'rgbif', # import ad hoc data from GBIF
-                     'tidyr' # data tidying
-) 
-for(p in requiredPackages){
-  if(!require(p,character.only = TRUE)) install.packages(p)
-  library(p,character.only = TRUE)
-}
-
 ad.hoc <- read.csv("tiger/data/prob 2/Ad Hoc v9 Sumatra 25NOV2019_V2_singleheader_srtm_hii.csv")
 
 # column of ones for observations
@@ -41,11 +24,6 @@ ad.hoc <- ad.hoc %>% select(gridcode = cell.label,
                             srtm = sumatragridmrgd2_centroids_srtm_srtm_1,
                             observation = "rep(1, nrow(as.matrix(ad.hoc)))")
 
-# average distance to road
-# average TRI
-# average HII
-# average canopy cover (from UMD)
-# 1921 unique grid cells
 ad.hoc.covariates <- read.csv("tiger/data/200130_Sumatragrid_covariates.csv")
 
 # merge dataframes
@@ -61,23 +39,23 @@ ad.hoc.all = ad.hoc.all[is.complete,]
 means <- apply(ad.hoc.all[,c("hii","woody_cover","tri","distance_to_roads")],2,mean)
 sds <- apply(ad.hoc.all[,c("hii","woody_cover","tri","distance_to_roads")],2,sd)
 
-ad.hoc.all <- ad.hoc.all %>% mutate(hii = (hii - means)/sds,
-                                    woody_cover = (woody_cover - means)/sds,
-                                    tri = (tri - means)/sds,
-                                    distance_to_roads = (distance_to_roads - means)/sds)
+ad.hoc.all <- ad.hoc.all %>% mutate(hii = (hii - means[1])/sds[1],
+                                    woody_cover = (woody_cover - means[2])/sds[2],
+                                    tri = (tri - means[3])/sds[3],
+                                    distance_to_roads = (distance_to_roads - means[4])/sds[4])
 
-# sum(ad.hoc.all$hii)
-# sum(ad.hoc.all$tri)
-# sum(ad.hoc.all$woody_cover)
+woody.cover.hii.all <- ad.hoc.all %>% select(gridcode,
+                                             hii,
+                                             woody_cover)
 
 # 29 unique grid cells
 ad.hoc.29 <- merge(ad.hoc, ad.hoc.all, by="gridcode")
 ad.hoc.29 <- ad.hoc.29 %>% select(gridcode, 
-                          hii = hii.x, 
-                          woody_cover, 
-                          distance_to_roads, 
-                          tri,
-                          observation=observation.y)
+                                  hii = hii.x, 
+                                  woody_cover, 
+                                  distance_to_roads, 
+                                  tri,
+                                  observation=observation.y)
 
 # standardize covariates?
 
@@ -99,9 +77,9 @@ W.back = cbind(rep(1, nrow(as.matrix(W.back))), W.back)
 W.back <- W.back %>% select(observation = "rep(1, nrow(as.matrix(W.back)))",tri,distance_to_roads)
 W.back <- as.matrix(W.back)
 
-#area in squared km
+# area in squared km
 area.back = 1
-s.area=area.back*nrow(tmpX) #study area
+s.area=area.back*nrow(X.back) #study area
 
 # adding column of ones - po locations
 
@@ -117,25 +95,5 @@ W.po <- ad.hoc.29 %>% select(observation = "rep(1, nrow(as.matrix(ad.hoc.29)))",
                              distance_to_roads)
 W.po <- as.matrix(W.po)
 
-pb.fit=pb.ipp(X.po, W.po, X.back, W.back)
-
-#### Original code
-
-#turning rasters into tables - background, adding column of ones
-# X.back = cbind(rep(1, ncell(s.occupancy)), values(s.occupancy))
-# colnames(X.back)=c("",names(s.occupancy))
-# W.back = cbind(rep(1, ncell(s.detection)), values(s.detection))
-# colnames(W.back)=c("",names(s.detection))
-# remove all NA values
-# tmp=X.back[complete.cases(X.back)&complete.cases(W.back),]
-# W.back=W.back[complete.cases(X.back)&complete.cases(W.back),]
-# X.back=tmp
-
-#area in squared km -----------------------------------
-# area.back = rep((xres(s.occupancy)/1000)*(yres(s.occupancy)/1000), nrow(X.back))# each cell
-# s.area=area.back*nrow(X.back) #study area
-# 
-# # adding column of ones - po locations
-# X.pb=cbind(rep(1, nrow(as.matrix(pb.occupancy))), pb.occupancy)
-# W.pb=cbind(rep(1, nrow(as.matrix(pb.detection))), pb.detection)
-
+pb.fit=pb.ipp(X.po=X.po, W.po=W.po, X.back=X.back, W.back=W.back)
+pb.fit
