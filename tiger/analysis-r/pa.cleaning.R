@@ -2,10 +2,11 @@
 # Site occupancy data
 ########################################
 
+
 # rename variables
 s.o.original = rename(s.o.original, 
                       num.surveys = X..replicates.surveyed,
-                      grid = grid.cell.label, 
+                      gridcode = grid.cell.label, 
                       replicate = replicate..)
 
 s.o.original = s.o.original %>% select(-survey.id) # same on every column
@@ -13,7 +14,12 @@ s.o.original = s.o.original %>% select(-survey.id) # same on every column
 #unique id on grid cell & replicate number
 s.o.original$id.survey = cumsum(!duplicated(s.o.original[2:4])) 
 
-max(s.o.original$num.surveys) #98
+max(s.o.original$num.surveys) # 98
+
+# get covariates by grid cell  - hii and woody_cover
+s.o.subset<- s.o.original %>% select(gridcode) %>% distinct()
+so.occupancy <- merge(woody.cover.hii.all, s.o.subset, by = c("gridcode"))
+so.occupancy <- so.occupancy %>% select(-gridcode)
 
 # Take all the surveys with NO signs
 # create new row for each survey that took 
@@ -55,12 +61,12 @@ reps = plyr::match_df(
 # subtract overlapping observations from the expanded set
 final.filled = setdiff(so.filled_a,reps)
 
-strip.so = dplyr::select(final.filled,observation,survey,grid, id.survey)
+strip.so = dplyr::select(final.filled,observation,survey,gridcode, id.survey)
 
 y.so = spread(strip.so, survey, observation)
 
 # remove variables grid and id.survey
-y.so <- y.so %>% select(-grid, -id.survey)
+y.so <- y.so %>% select(-gridcode, -id.survey)
 
 # create new table with only two columns
 temp = matrix(0,ncol = 2, nrow = dim(y.so)[1])
@@ -68,16 +74,12 @@ temp[,1] = rowSums(ifelse(is.na(y.so)==FALSE,1,0)) # number of times zero or one
 temp[,2] = rowSums(ifelse(is.na(y.so)==FALSE & y.so == 1,1,0)) # number of times tiger was seen 
 
 # remove NaNs
-is.complete = which(so.occupancy$hii != "NaN")
+# is.complete = which(so.occupancy$hii != "NaN")
+# 
+# # only use complete cases
+# so.occupancy = so.occupancy[is.complete,]
 
-# only use complete cases
-so.occupancy = so.occupancy[is.complete,]
-
-# standardize covariates
-so.occupancy$elevation <- tr(so.occupancy$elevation)
-so.occupancy$hii <- tr(so.occupancy$hii)
-
-temp=temp[is.complete,]# only use complete cases
+# temp=temp[is.complete,]# only use complete cases
 
 y.so <- temp
 
