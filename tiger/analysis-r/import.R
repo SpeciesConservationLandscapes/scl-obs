@@ -130,5 +130,6 @@ ct.occupancy.srtm <- ct.occupancy.srtm %>% select(camera.latitude=camera.lat,
                                                 camera.longitude=camera.lon,
                                                 srtm = srtm_1)
 
-ct.occupancy <- readOGR(dsn = "tiger/data/prob 2", layer = "Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_celllabels")
-ct.occupancy <- as.data.frame(ct.occupancy)
+ct.shp <- readOGR(dsn = "tiger/data/prob 2", layer = "Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_celllabels")
+ct.shp.df <- as.data.frame(ct.shp)
+
