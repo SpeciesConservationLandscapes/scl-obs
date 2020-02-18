@@ -45,26 +45,27 @@ pb.ipp=function(X.po, W.po,X.back, W.back){
   minrecipCondNum = 1e-6
   paramGuess = c(rep(.1, ncol(X.po)), rep(-.1, ncol(W.po)))
   
-  fit.po = optim(par=paramGuess, fn=negLL.po, method='BFGS', hessian=FALSE
+  # error with BFGS with current data (2/6/2020)
+  fit.po = optim(par=paramGuess, fn=negLL.po, method='SANN', hessian=FALSE
                  , X.po=X.po, W.po=W.po,X.back=X.back,W.back=W.back ) # params for likelyhood function
   
-  
   # calculating se with Hessian matrix
-  recipCondNum.po = NA
-  se.po = rep(NA, length(fit.po$par))
-  if (fit.po$convergence==0) {
-    hess = ObsInfo.po(fit.po$par, X.po, W.po,X.back, W.back)
-    ev = eigen(hess)$values
-    recipCondNum.po = ev[length(ev)]/ev[1]
-    if (recipCondNum.po>minrecipCondNum) {
-      vcv = chol2inv(chol(hess))
-      se.po = sqrt(diag(vcv))
-    }
-  }
+  # recipCondNum.po = NA
+  # se.po = rep(NA, length(fit.po$par))
+  # if (fit.po$convergence==0) {
+  #   hess = ObsInfo.po(fit.po$par, X.po, W.po,X.back, W.back)
+  #   ev = eigen(hess)$values
+  #   recipCondNum.po = ev[length(ev)]/ev[1]
+  #   if (recipCondNum.po>minrecipCondNum) {
+  #     vcv = chol2inv(chol(hess))
+  #     se.po = sqrt(diag(vcv))
+  #  }
+  #}
   
   #printing PO results
-  tmp= data.frame(par.names,fit.po$par,se.po)
-  names(tmp)=c('Parameter name', 'Value', 'Standard error')
+  #tmp= data.frame(par.names,fit.po$par,se.po)
+  tmp= data.frame(par.names,fit.po$par)
+  names(tmp)=c('Parameter name', 'Value')
   p=NULL
   p$coefs=tmp
   p$convergence=fit.po$convergence
@@ -123,7 +124,10 @@ so.model=function(X.so,y.so){
 
 
 #Function that fits Combined data model
-pbso.integrated=function(X.po, W.po,X.back, W.back,X.so,W.so,y.so){
+##### add 1 ands 2
+##### use arrays
+
+pbso.integrated=function(X.po, W.po, X.back, W.back, X.so, y.so){
   
   beta.names=colnames(X.back)
   beta.names[1]='beta0'
@@ -137,11 +141,14 @@ pbso.integrated=function(X.po, W.po,X.back, W.back,X.so,W.so,y.so){
   
   par.names=c(beta.names,	alpha.names, alpha.names.so)
   
-  y.so.pres = y.so[rowSums(y.so)>=1,] #detection/non detection matrix for sites with detection in at least one of the surveys
+  # y.so.pres = y.so[rowSums(y.so)>=1,] #detection/non detection matrix for sites with detection in at least one of the surveys
   minrecipCondNum = 1e-6
-  paramGuess = c(rep(0, dim(X.po)[2]),rep(0, dim(W.po)[2]), rep(0, dim(W.so)[3]))
+  
+  paramGuess = c(rep(0, dim(X.po)[2]),rep(0, dim(W.po)[2]), rep(0,2)) # change this later to make scaleable
+  
   fit.pbso = optim(par=paramGuess, fn=negLL.pbso, method='BFGS', hessian=TRUE
-                   ,y.so.pres=y.so.pres,y.so=y.so, X.po=X.po, W.po=W.po, X.back=X.back, W.back=W.back, X.so=X.so, W.so=W.so )
+                   ,y.so=y.so, X.po=X.po, W.po=W.po, X.back=X.back, W.back=W.back, X.so=X.so) #### add in 1 and 2
+  ### check debug here
   
   # calculating se with Hessian matrix
   recipCondNum.pbso = NA
@@ -337,9 +344,12 @@ negLL.so = function(param, y.so,X.so) {
   -1*sum(log(lik))
 }
 
-negLL.pbso = function(param,y.so.pres,y.so, X.po, W.po, X.back, W.back, X.so, W.so )  {
+negLL.pbso = function(param, y.so1, y.so2, X.po, W.po, X.back, W.back, X.so1, X.so2)  {
   
   param.po = param[1:(dim(X.po)[2]+dim(W.po)[2])]
-  param.so = param[c(1:dim(X.po)[2], (dim(X.po)[2]+dim(W.po)[2]+1):(dim(X.po)[2]+dim(W.po)[2]+dim(W.so)[3]))]
-  negLL.po(param.po, X.po, W.po,X.back, W.back ) + negLL.so(param.so,y.so.pres,y.so,X.so,W.so) +  negLL.so(param.so,y.so.pres,y.so,X.so,W.so)
+  param.so1 = param[c(1:dim(X.po)[2], (dim(X.po)[2]+dim(W.po)[2]+1))]
+  param.so2 = param[c(1:dim(X.po)[2], (dim(X.po)[2]+dim(W.po)[2]+2))]
+  
+  negLL.po(param.po, X.po, W.po,X.back, W.back ) + negLL.so(param.so1,y.so1,X.so1) +  negLL.so(param.so2,y.so2,X.so2)
+
 }
