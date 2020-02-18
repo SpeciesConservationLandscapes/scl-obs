@@ -286,6 +286,9 @@ ct <- rbind(ct, ct2)
 # [1] "pickup.date.time"      "deployment.date.time"  "observation.date.time" "camera.latitude"      
 # [5] "camera.longitude"      "gridcode"
 
+# remove hour minutes
+ct$observation.date.time<-as.Date(as.POSIXct(ct$observation.date.time,format='%m/%d/%Y %H:%M'))
+
 # create a variable for the number of replicates per survey (one a day)
 ct <- ct %>% mutate(# number of days between pick up and deployment
   num.surveys = as.Date(as.character(pickup.date.time), 
@@ -315,8 +318,9 @@ ct <- ct %>% select(num.surveys,
                     observation, 
                     replicate)
 
-# remove hour minutes
-# ct$observation.date.time<-as.Date(as.POSIXct(ct$observation.date.time,format='%m/%d/%Y %H:%M'))
+# OBSERVATIONS - 1/0????
+# REMOVE DUPLICATES????
+ct <- ct[!duplicated(ct[c(1,5)]),]
 
 #unique id on grid cell & replicate number
 ct$id.survey = cumsum(!duplicated(ct[2:4])) 
@@ -324,8 +328,11 @@ ct$id.survey = cumsum(!duplicated(ct[2:4]))
 # make a copy
 ct.merged <- ct 
 
+# remove NA from num surveys
+ct.merged <- ct.merged %>% filter(num.surveys != "NA")
 max(ct.merged$num.surveys) # 852 days expanded
 
+# 30
 ct.merged <- ct.merged %>% select(num.surveys,
                                   grid = gridcode,
                                   observation,
@@ -376,7 +383,8 @@ strip.so = dplyr::select(final.filled,observation,survey,grid, id.survey)
 y.ct = spread(strip.so, survey, observation)
 
 # remove variables grid and id.survey
-y.ct <- y.ct %>% select(-grid, -id.survey)
+y.ct2 <- y.ct %>% select(-grid, -id.survey)
+y.ct <- y.ct %>% select(grid)
 
 # exactly what we did in the so model
 # create new table with only two columns
@@ -386,7 +394,7 @@ temp[,2] = rowSums(ifelse(is.na(y.ct)==FALSE & y.ct == 1,1,0)) # number of times
 
 # temp=temp[is.complete,]# only use complete cases
 
-y.so2 <- temp
+y.so2 <- temp # 18...?
 
 area.so = 1
 
@@ -394,11 +402,11 @@ area.so = 1
 # so.occupancy2
 ##############
 
-ct.subset <- ct %>% select(gridcode)
+ct.subset <- y.ct %>% select(gridcode = grid)
 
 so.occupancy2 <- merge(woody.cover.hii.all, ct.subset, by = c("gridcode"))
 
-so.occupancy2 <- merge(ct.shp.df, so.occupancy2, by = c("gridcode")) %>% distinct()
+# so.occupancy2 <- merge(ct.shp.df, so.occupancy2, by = c("gridcode")) %>% distinct()
 so.occupancy2 <- so.occupancy2 %>% select(hii, woody_cover)
 
 # standardize
