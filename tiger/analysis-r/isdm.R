@@ -209,35 +209,37 @@ X.so1 = cbind(rep(1, nrow(as.matrix(so.occupancy))), so.occupancy) # 3 columns a
 unzip("tiger/data/camera_latlon_gridcode.zip")
 camera.gridcode <- readOGR(dsn = ".", layer = "camera_latlon_gridcode")
 camera.gridcode <- as.data.frame(camera.gridcode)
-
-# camera trap shapefile
-ct.shp <- readOGR(dsn = "tiger/data/prob 2", layer = "Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_celllabels")
-ct.shp.df <- as.data.frame(ct.shp)
+# rename and select variables
+camera.gridcode <- camera.gridcode %>% mutate(camera.latitude = lat, 
+                                              camera.longitude = lon) %>% 
+                                        select(gridcode,
+                                               camera.latitude,
+                                               camera.longitude)
 
 # BBSNP2015 CT data
 # 31 unique deployments
 tiger.CT.observations <- read.csv("tiger/data/Tiger_observation_entry_9_CT_observations_BBSNP_V2.csv")
 # 68 unique deployments
 tiger.CT.entry <- read.csv("tiger/data/Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
+# Leuser
+unzip("tiger/data/tiger_sumatra_mvp_data.zip")
+tiger.CT.observations2 <- read.csv("tiger/data/data/Tiger_observation_entry_9_CT_observations_Leuser.csv")
+tiger.CT.entry2 <- read.csv("tiger/data/data/Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2.csv")
+# remove NAs
+tiger.CT.observations2 <- tiger.CT.observations2 %>% filter(project.ID == "Leuser CT2013")
 
-##############
-# Clean CT
-##############
+# camera trap shapefile
+ct.shp <- readOGR(dsn = "tiger/data/prob 2", layer = "Tiger_observation_entry_9_CT_deployments_latlon_BBSNP_celllabels")
+ct.shp.df <- as.data.frame(ct.shp)
 
-# rename and select variables
-camera.gridcode <- camera.gridcode %>% mutate(camera.latitude = lat, 
-                                              camera.longitude = lon) %>% 
-                                       select(gridcode,
-                                              camera.latitude,
-                                              camera.longitude)
-
-# unique(camera.gridcode$gridcode) # 8 unique grid cells
-# unique(camera.gridcode$camera.longitude) # 63 unique lat/lon values
+# Leuser data with gridcells
+ct.leuser.shp <- readOGR(dsn = "tiger/data/prob 2", layer = "Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2_celllabels")
+ct.leuser.df <- as.data.frame(ct.leuser.shp)
 
 # rename and select camera trap variables
 ct.shp.df <- ct.shp.df %>% mutate(deployment.ID = deployment,
                                   pickup.date.time = pickup.dat,
-                                  deplpyment.date.time = deployme_1,
+                                  deployment.date.time = deployme_1,
                                   camera.latitude = camera.lat,
                                   camera.longitude = camera.lon) %>% select(-grid)
 
@@ -248,16 +250,47 @@ ct.shp.df <- ct.shp.df %>% filter(deployment.ID != c("BBS-2015-Loc-36") &
                                     deployment.ID != c("BBS-2015-Loc-12")&
                                     deployment.ID != c("BBS-2015-Loc-41"))
 
+# rename and select camera trap variables
+ct.leuser.df <- ct.leuser.df %>% mutate(deployment.ID = deployment,
+                                  pickup.date.time = pickup.dat,
+                                  deployment.date.time = deployme_1,
+                                  camera.latitude = camera.lat,
+                                  camera.longitude = camera.lon) %>% select(-grid)
+
 # unique(ct.shp.df$camera.lon) # 63 unique lat/lon values
+
+# factor variables
+tiger.CT.observations2$deployment.ID <- as.factor(tiger.CT.observations2$deployment.ID)
 
 # merge dfs to get observation times, pick up, deployment, and gridcode in one df
 ct <- left_join(ct.shp.df, tiger.CT.observations, by = "deployment.ID")
+ct2 <- left_join(ct.leuser.df, tiger.CT.observations2, by = "deployment.ID")
+
+# select variables
+ct <- ct %>% select(pickup.date.time,
+                    deployment.date.time,
+                    observation.date.time,
+                    camera.latitude,
+                    camera.longitude,
+                    gridcode)
+
+ct2 <- ct2 %>% select(pickup.date.time,
+                    deployment.date.time,
+                    observation.date.time,
+                    camera.latitude,
+                    camera.longitude,
+                    gridcode)
+
+ct <- rbind(ct, ct2)
+# 395 observations for both camera trap datasets
+# [1] "pickup.date.time"      "deployment.date.time"  "observation.date.time" "camera.latitude"      
+# [5] "camera.longitude"      "gridcode"
 
 # create a variable for the number of replicates per survey (one a day)
 ct <- ct %>% mutate(# number of days between pick up and deployment
   num.surveys = as.Date(as.character(pickup.date.time), 
                         format="%Y/%m/%d")-
-    as.Date(as.character(deplpyment.date.time), 
+    as.Date(as.character(deployment.date.time), 
             format="%Y/%m/%d"),
   # the day that the tiger was observed
   replicate = as.Date(as.character(pickup.date.time), 
@@ -265,7 +298,7 @@ ct <- ct %>% mutate(# number of days between pick up and deployment
     as.Date(as.character(observation.date.time), 
             format="%m/%d/%Y"))
 
-ct <- ct %>% filter(pickup.dat != "NONE") # removes 5 missing cameras
+# ct <- ct %>% filter(pickup.datw != "NONE") # removes 5 missing cameras
 
 # add 0s for where a camera wasn't observed (listed as NAs)
 ct$observation.date.time <- as.character(ct$observation.date.time)
@@ -283,18 +316,16 @@ ct <- ct %>% select(num.surveys,
                     replicate)
 
 # remove hour minutes
-ct$observation.date.time<-as.Date(as.POSIXct(ct$observation.date.time,format='%m/%d/%Y %H:%M'))
+# ct$observation.date.time<-as.Date(as.POSIXct(ct$observation.date.time,format='%m/%d/%Y %H:%M'))
 
 #unique id on grid cell & replicate number
 ct$id.survey = cumsum(!duplicated(ct[2:4])) 
 
-# create dataframe of covariates per observation
-# so.occupancy2 <- so.occupancy2 %>% select(hii, srtm)
-
-# drop variables 
+# make a copy
 ct.merged <- ct 
 
-max(ct.merged$num.surveys) # 154 days expanded
+max(ct.merged$num.surveys) # 852 days expanded
+
 ct.merged <- ct.merged %>% select(num.surveys,
                                   grid = gridcode,
                                   observation,
@@ -305,7 +336,7 @@ ct.merged <- ct.merged %>% select(num.surveys,
 # create new row for each survey that took 
 a <- ct.merged %>% 
   filter(observation == 0) %>% 
-  crossing(survey =(1:154)) %>% #max number of surveys done
+  crossing(survey =(1:852)) %>% #max number of surveys done
   mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>% 
   na.omit()
 a <- dplyr::select(a,-c(good.survey))
@@ -314,13 +345,12 @@ a <- dplyr::select(a,-c(good.survey))
 b = ct.merged %>% 
   filter(observation == 1) %>% 
   select(-observation) %>% 
-  crossing(survey =(1:154)) %>% 
+  crossing(survey =(1:852)) %>% 
   mutate(good.survey = ifelse(survey>num.surveys, NA, 1)) %>%
   na.omit() %>%
   mutate(observation = ifelse(survey!=replicate, 0, 1))
 
 b = dplyr::select(b,-c(good.survey)) 
-#View(s.o.original)
 
 # combine the two
 so.filled =rbind(a,b)
@@ -360,13 +390,11 @@ y.so2 <- temp
 
 area.so = 1
 
-X.so2 = cbind(rep(1, nrow(as.matrix(so.occupancy2))), so.occupancy2) 
-
 ##############
 # so.occupancy2
 ##############
 
-ct.subset <- ct %>% select(gridcode) %>% distinct()
+ct.subset <- ct %>% select(gridcode)
 
 so.occupancy2 <- merge(woody.cover.hii.all, ct.subset, by = c("gridcode"))
 
@@ -376,6 +404,8 @@ so.occupancy2 <- so.occupancy2 %>% select(hii, woody_cover)
 # standardize
 so.occupancy2 <- so.occupancy2 %>% mutate(hii = (hii - means[1])/sds[1],
                                           woody_cover = (woody_cover - means[2])/sds[2])
+
+X.so2 = cbind(rep(1, nrow(as.matrix(so.occupancy2))), so.occupancy2) 
 
 ################################################################################
 # ANALYSIS
