@@ -8,7 +8,7 @@ R code for producing probability grids from observations
 	  |-- analysis-r     	   
 		|-- gbig_idigbio_extraction.R   # GBIF iDigBio extraction code - not needed
 		|-- idsm.R   			# import, clean, analyze
-		|-- functions_modified.R        # functions needed to run analysis.R below
+		|-- functions_modified.R        # functions needed to run idsm.R
 		
 	  |-- data                      	# shapefiles and csvs provided by tiger team
   
