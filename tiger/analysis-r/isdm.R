@@ -23,6 +23,8 @@ for(p in requiredPackages){
 # AD HOC DATA AND COVARIATES FOR ALL GRIDS
 ################################################################################
 
+setwd("/Users/chesterberry/mari/scl-obs-master/")
+
 # ad hoc data
 ad.hoc <- read.csv("tiger/data/prob 2/Ad Hoc v9 Sumatra 25NOV2019_V2_singleheader_srtm_hii.csv")
 ad.hoc=cbind(rep(1, nrow(as.matrix(ad.hoc))), ad.hoc) # column of ones for observations
@@ -204,6 +206,8 @@ X.so1 = cbind(rep(1, nrow(as.matrix(so.occupancy))), so.occupancy) # 3 columns a
 # Import CT 
 ##############
 
+setwd("/Users/chesterberry/mari/scl-obs-master/")
+
 # import shapefile of camera lat long and corresponding grid cells
 # only includes grid cells for Puspurini data, not Leuser - 8 unique grid cells, 63 unique lat/lon values
 unzip("tiger/data/camera_latlon_gridcode.zip")
@@ -223,8 +227,8 @@ tiger.CT.observations <- read.csv("tiger/data/Tiger_observation_entry_9_CT_obser
 tiger.CT.entry <- read.csv("tiger/data/Tiger_observation_entry_9_CT_deployments_latlon_BBSNP.csv")
 # Leuser
 unzip("tiger/data/tiger_sumatra_mvp_data.zip")
-tiger.CT.observations2 <- read.csv("tiger/data/data/Tiger_observation_entry_9_CT_observations_Leuser.csv")
-tiger.CT.entry2 <- read.csv("tiger/data/data/Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2.csv")
+tiger.CT.observations2 <- read.csv("tiger/data/Tiger_observation_entry_9_CT_observations_Leuser.csv")
+tiger.CT.entry2 <- read.csv("tiger/data/Tiger_observation_entry_9_CT_deployments_latlon_Leuser_V2.csv")
 # remove NAs
 tiger.CT.observations2 <- tiger.CT.observations2 %>% filter(project.ID == "Leuser CT2013")
 
@@ -272,22 +276,21 @@ ct <- ct %>% select(pickup.date.time,
                     observation.date.time,
                     camera.latitude,
                     camera.longitude,
-                    gridcode)
+                    gridcode,
+                    deployment.ID)
 
 ct2 <- ct2 %>% select(pickup.date.time,
                     deployment.date.time,
                     observation.date.time,
                     camera.latitude,
                     camera.longitude,
-                    gridcode)
+                    gridcode,
+                    deployment.ID)
 
 ct <- rbind(ct, ct2)
 # 395 observations for both camera trap datasets
 # [1] "pickup.date.time"      "deployment.date.time"  "observation.date.time" "camera.latitude"      
 # [5] "camera.longitude"      "gridcode"
-
-# remove hour minutes
-ct$observation.date.time<-as.Date(as.POSIXct(ct$observation.date.time,format='%m/%d/%Y %H:%M'))
 
 # create a variable for the number of replicates per survey (one a day)
 ct <- ct %>% mutate(# number of days between pick up and deployment
@@ -301,7 +304,17 @@ ct <- ct %>% mutate(# number of days between pick up and deployment
     as.Date(as.character(observation.date.time), 
             format="%m/%d/%Y"))
 
+# remove hour minutes so that there is presence or absence for each day rather than multiple observations
+ct$observation.date.time<-as.Date(as.POSIXct(ct$observation.date.time,format='%m/%d/%Y %H:%M'))
+
+###### REMOVE DUPLICATES?????
+
+# ct <- ct[!duplicated(ct[c(1,5)]),]
 # ct <- ct %>% filter(pickup.datw != "NONE") # removes 5 missing cameras
+
+# 215 observations
+ct <- ct %>% distinct()
+ct <- ct %>% select(-deployment.ID)
 
 # add 0s for where a camera wasn't observed (listed as NAs)
 ct$observation.date.time <- as.character(ct$observation.date.time)
@@ -318,17 +331,14 @@ ct <- ct %>% select(num.surveys,
                     observation, 
                     replicate)
 
-# OBSERVATIONS - 1/0????
-# REMOVE DUPLICATES????
-ct <- ct[!duplicated(ct[c(1,5)]),]
-
 #unique id on grid cell & replicate number
-ct$id.survey = cumsum(!duplicated(ct[2:4])) 
+ct$id.survey = cumsum(!duplicated(ct[2])) 
 
 # make a copy
 ct.merged <- ct 
 
 # remove NA from num surveys
+# 109 observations
 ct.merged <- ct.merged %>% filter(num.surveys != "NA")
 max(ct.merged$num.surveys) # 852 days expanded
 
@@ -388,13 +398,13 @@ y.ct <- y.ct %>% select(grid)
 
 # exactly what we did in the so model
 # create new table with only two columns
-temp = matrix(0,ncol = 2, nrow = dim(y.ct)[1])
-temp[,1] = rowSums(ifelse(is.na(y.ct)==FALSE,1,0)) # number of times zero or one
-temp[,2] = rowSums(ifelse(is.na(y.ct)==FALSE & y.ct == 1,1,0)) # number of times tiger was seen 
+temp = matrix(0,ncol = 2, nrow = dim(y.ct2)[1])
+temp[,1] = rowSums(ifelse(is.na(y.ct2)==FALSE,1,0)) # number of times zero or one
+temp[,2] = rowSums(ifelse(is.na(y.ct2)==FALSE & y.ct2 == 1,1,0)) # number of times tiger was seen 
 
 # temp=temp[is.complete,]# only use complete cases
 
-y.so2 <- temp # 18...?
+y.so2 <- temp 
 
 area.so = 1
 
@@ -422,15 +432,70 @@ X.so2 = cbind(rep(1, nrow(as.matrix(so.occupancy2))), so.occupancy2)
 # SITE OCCUPANCY
 so.fit=so.model(X.so=X.so1,y.so=y.so1)
 so.fit
+# $coefs
+# Parameter name      Value Standard error
+# 1          beta0 -0.7248378     0.16827843
+# 2            hii  0.1594643     0.11495585
+# 3    woody_cover  0.8728821     0.19321552
+# 4 alphaintercept -2.5062539     0.04591906
+# 
+# $convergence
+# [1] 0
+# 
+# $value
+# [1] 2388.365
 
 # CAMERA TRAP
 ct.fit=so.model(X.so=X.so2,y.so=y.so2)
 ct.fit
+# $coefs
+# Parameter name      Value Standard error
+# 1          beta0 -0.3266466     97.6257821
+# 2            hii -1.1504321      4.0573230
+# 3    woody_cover  1.5604929     50.8323994
+# 4 alphaintercept -2.8131726      0.1340841
+# 
+# $convergence
+# [1] 0
+# 
+# $value
+# [1] 236.2238
 
 # AD HOC
 pb.fit=pb.ipp(X.po=X.po, W.po=W.po, X.back=X.back, W.back=W.back)
 pb.fit
+# $coefs
+# Parameter name      Value
+# 1             beta0 -192.66095
+# 2               hii  142.92509
+# 3       woody_cover  155.18525
+# 4            alpha0 -209.95196
+# 5               tri   10.48055
+# 6 distance_to_roads   98.64668
+# 
+# $convergence
+# [1] 0
+# 
+# $value
+# [1] -38237.2
 
 # INTEGRATED 
-integrated.fit=pbso.integrated(X.po, W.po,X.back, W.back,X.so,W.so,y.so)
+# data issue, no SE
+integrated.fit=pbso.integrated(X.po, W.po, X.back, W.back, X.so1, X.so2, y.so1, y.so2)
 integrated.fit
+# $coefs
+# Parameter name      Value Standard error
+# 1             beta0  15.311190             NA
+# 2               hii  13.821215             NA
+# 3       woody_cover   9.543099             NA
+# 4            alpha0 -56.635702             NA
+# 5               tri   4.607397             NA
+# 6 distance_to_roads   9.556901             NA
+# 7            alpha1  -2.851738             NA
+# 8            alpha2  -2.762765             NA
+# 
+# $convergence
+# [1] 0
+# 
+# $value
+# [1] -578.012
