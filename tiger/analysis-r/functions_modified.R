@@ -46,7 +46,7 @@ pb.ipp=function(X.po, W.po,X.back, W.back){
   paramGuess = c(rep(.1, ncol(X.po)), rep(-.1, ncol(W.po)))
   
   # error with BFGS with current data (2/6/2020)
-  fit.po = optim(par=paramGuess, fn=negLL.po, method='SANN', hessian=FALSE
+  fit.po = optim(par=paramGuess, fn=negLL.po, method='SANN', hessian=TRUE
                  , X.po=X.po, W.po=W.po,X.back=X.back,W.back=W.back ) # params for likelyhood function
   
   # calculating se with Hessian matrix
@@ -127,7 +127,7 @@ so.model=function(X.so,y.so){
 ##### add 1 ands 2
 ##### use arrays
 
-pbso.integrated=function(X.po, W.po, X.back, W.back, X.so, y.so){
+pbso.integrated=function(X.po, W.po, X.back, W.back, X.so1, X.so2, y.so1, y.so2){
   
   beta.names=colnames(X.back)
   beta.names[1]='beta0'
@@ -136,8 +136,10 @@ pbso.integrated=function(X.po, W.po, X.back, W.back, X.so, y.so){
   alpha.names[1]='alpha0'
   
   alpha.names.so=NULL
-  for (i in 1:(dim(W.so)[3])){
-    alpha.names.so[i]=paste("alpha",as.character(i-1), ".so", sep="")}
+  # for (i in 1:(dim(W.so)[3])){
+  #   alpha.names.so[i]=paste("alpha",as.character(i-1), ".so", sep="")}
+  
+  alpha.names.so = c("alpha1","alpha2")
   
   par.names=c(beta.names,	alpha.names, alpha.names.so)
   
@@ -146,8 +148,8 @@ pbso.integrated=function(X.po, W.po, X.back, W.back, X.so, y.so){
   
   paramGuess = c(rep(0, dim(X.po)[2]),rep(0, dim(W.po)[2]), rep(0,2)) # change this later to make scaleable
   
-  fit.pbso = optim(par=paramGuess, fn=negLL.pbso, method='BFGS', hessian=TRUE
-                   ,y.so=y.so, X.po=X.po, W.po=W.po, X.back=X.back, W.back=W.back, X.so=X.so) #### add in 1 and 2
+  fit.pbso = optim(par=paramGuess, fn=negLL.pbso, method='SANN', hessian=TRUE
+                   ,y.so1=y.so1, y.so2=y.so2, X.po=X.po, W.po=W.po, X.back=X.back, W.back=W.back, X.so1=X.so1, X.so2=X.so2) #### add in 1 and 2
   ### check debug here
   
   # calculating se with Hessian matrix
