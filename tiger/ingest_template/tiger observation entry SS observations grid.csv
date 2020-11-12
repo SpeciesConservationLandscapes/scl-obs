@@ -1,1 +1,1 @@
-survey id,# replicates surveyed,grid cell label,start date,observation,replicate #
+survey id,# replicates surveyed,grid cell label,start date,observation,replicate #,# adult males,# adult females,# adults sex unknown,# Subadults (either sex - 1-2 years old),# cubs (either sex - 1-12 month old),notes
