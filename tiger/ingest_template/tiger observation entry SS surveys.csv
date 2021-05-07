@@ -1,1 +1,1 @@
-survey id,country,grid,name of observer/PI,organizational affiliation,email address,type of replication,gridsize,number of grid cells,maximum # replicate surveys,survey effort per replicate,units of survey effort
+survey id,country,grid,name of observer/PI,organizational affiliation,email address,reference,type of replication,gridsize,number of grid cells,maximum # replicate surveys,survey effort per replicate,units of survey effort
