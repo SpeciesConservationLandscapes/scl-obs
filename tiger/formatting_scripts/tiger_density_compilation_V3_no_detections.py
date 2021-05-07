@@ -9,7 +9,8 @@ UNFORMATTED_DIR = os.path.join(DATA_DIR, 'unformatted_data')
 FORMATTED_DIR = os.path.join(DATA_DIR, 'tip_formatted_data')
 TEMPLATE_DIR = os.path.join(PROJECT_DIR, 'ingest_template')
 
-data = pd.read_excel(os.path.join(UNFORMATTED_DIR, 'TigerDensityCompilation_V_3.2.xlsx'), header=1)
+# data = pd.read_excel(os.path.join(UNFORMATTED_DIR, 'TigerDensityCompilation_V_3.2.xlsx'), header=1)
+data = pd.read_csv(os.path.join(UNFORMATTED_DIR, 'TigerDensityCompilation_V_3.2_org_affiliations.csv'), header=0)
 ct_deployment = pd.read_csv(os.path.join(TEMPLATE_DIR, 'tiger observation entry CT deployments grid.csv'), header=0)
 
 # Save flags
@@ -24,10 +25,13 @@ estimate_trap_effort = False
 # grid_contains_point : all grid cells that contain a point from tiger site center point
 # grid_majority : intersection of study area polygon and cell, where tiger site polygon overlaps more than 50% of cell
 # grid_zone_overlap : list cells in tiger region grid that overlap
-grid_contains_point = pd.read_csv(
-    os.path.join(DATA_DIR, 'abishek_data_summary', 'TigerDensity_grid_contains_point.csv'))
+grid_contains_point = pd.read_csv(os.path.join(DATA_DIR, 'abishek_data_summary',
+                                               'TigerDensity_grid_contains_point.csv'))
+
 grid_majority = pd.read_csv(os.path.join(DATA_DIR, 'abishek_data_summary', 'TigerDensity_grid_majority.csv'))
-grid_zone_overlap = pd.read_csv(os.path.join(DATA_DIR, 'abishek_data_summary', 'tiger_region_grid_overlap.csv'), header=0)
+
+grid_zone_overlap = pd.read_csv(os.path.join(DATA_DIR, 'abishek_data_summary',
+                                             'tiger_region_grid_overlap.csv'), header=0)
 
 data_year = pd.read_csv(os.path.join(DATA_DIR, 'abishek_data_summary',
                                      'TigerDensity_compilation_startyear_endyear.csv'), header=0)
@@ -43,6 +47,7 @@ columns = ['Record ID',
            'Publication Title',
            'Publication Contact (Name)',
            'Publication Contact (email)',
+           'organizational affiliation',
            'No. of trap location',
            'StartYear',
            'EndYear',
@@ -55,6 +60,7 @@ columns = ['Record ID',
            'Estimated D.1',
            'Estimated D.2']
 
+# format values, set data types, and coerce errors
 data['Min No. Indivs (Mt+1)'] = pd.to_numeric(data['Min No. Indivs (Mt+1)'], errors='coerce', downcast='integer')
 data['No. captures'] = pd.to_numeric(data['No. captures'], errors='coerce', downcast='integer')
 data['Estimated D'] = pd.to_numeric(data['Estimated D'], errors='coerce')
@@ -64,7 +70,9 @@ data['Trap effort'] = pd.to_numeric(data['Trap effort'], errors='coerce')
 data['Sampling Start Date'] =pd.to_datetime(data['Sampling Start Date'], errors='coerce')
 data['Sampling End Date'] = pd.to_datetime(data['Sampling End Date'], errors='coerce')
 data['StartYear'] = pd.to_datetime(data['StartYear'], errors='coerce', format='%Y')
-data['EndYear'] = pd.to_datetime(data['EndYear'], errors='coerce', format='%Y')
+data['EndYear'] = pd.to_datetime((data['EndYear'].astype(str) + '-12-31'), errors='coerce')
+data['Publication Title'] = data['Publication Title'].replace('\n', '', regex=True)
+data['Site Name'] = data['Site Name'].replace('\n', '', regex=True)
 
 # filter no detection: study with 0 reported captures and 0 Min No. Individuals
 no_detection_df = data.loc[(data['Min No. Indivs (Mt+1)'] == 0) & (data['No. captures'] == 0)]
@@ -77,28 +85,21 @@ no_detection_df = no_detection_df.dropna(subset=['Sampling Start Date', 'Samplin
 # [365, 368, 369, 370, 371, 372, 375, 376, 377, 378, 392, 422, 621, 780, 996, 1171]
 if estimate_trap_effort is True:
     # print(no_detection_df[no_detection_df['Trap effort'].isnull()]['Record ID'].tolist())
-    no_detection_df['duration'] = (no_detection_df['Sampling End Date'] - no_detection_df['Sampling Start Date']) / np.timedelta64(1, 'D')
+    no_detection_df['duration'] = (no_detection_df['Sampling End Date'] -
+                                   no_detection_df['Sampling Start Date']) / np.timedelta64(1, 'D')
     no_detection_df['estimated_trap_effort'] = no_detection_df['duration'] * no_detection_df['No. of trap location']
     no_detection_df['Trap effort'].fillna(no_detection_df['estimated_trap_effort'], inplace=True)
 
-elif estimate_trap_effort is False:
-    no_detection_df = no_detection_df.dropna(subset=['Trap effort'])
+no_detection_df = no_detection_df.dropna(subset=['Trap effort'])
 
-# for remaining records use use study years where sampling dates are missing
+# for remaining records use study years where sampling dates are missing
 no_detection_df['Sampling Start Date'].fillna(no_detection_df['StartYear'], inplace=True)
-no_detection_df['Sampling End Date'].fillna(no_detection_df['StartYear'], inplace=True)
+no_detection_df['Sampling End Date'].fillna(no_detection_df['EndYear'], inplace=True)
 
-# records with tiger detections
-# detections_idx = np.where((data['Min No. Indivs (Mt+1)'] > 0)
-#                        | (data['No. captures'] > 0)
-#                        | (data['Estimated D'] > 0)
-#                        | (data['Estimated D.1'] > 0))
-#
-# detections_data = data.loc[detections_idx]
-
-# if detection_data_save is True:
-#     detections_data = data.loc[detections_idx]
-#     detections_data.to_csv(os.path.join(DATA_DIR, 'abishek_data_summary', 'TigerDensity_compliation_V3_detections.csv'))
+# fill missing contact information
+no_detection_df['Publication Contact (email)'].fillna('harihar.abishek@gmail.com', inplace=True)
+no_detection_df['Publication Contact (Name)'].fillna('Abishek Harihar', inplace=True)
+no_detection_df['organizational affiliation'].fillna('Panthera', inplace=True)
 
 # drop unneeded columns
 no_detection_df = no_detection_df[columns]
@@ -127,16 +128,18 @@ if grid_cell_save is True:
 # left join grid ids to absence data on Record ID
 no_detection_df = no_detection_df.merge(grid_cells, left_on='Record ID', right_on='RecordID', how='left').drop(columns='RecordID')
 
-if no_detection_data_save == True:
+if no_detection_data_save is True:
     absence_data_path = os.path.join(DATA_DIR, 'abishek_data_summary', 'no_detection_data.csv')
     no_detection_df.to_csv(absence_data_path, index=False)
 
-# create one record for each cell in study area and divide trap effort equally among cells
+# for each study: create one record for each cell in study area, dividing trap effort equally among cells
 d = []
 for i in set(no_detection_df['Record ID'].tolist()):
     # list of grid cells for record
     grid_id_list = no_detection_df[no_detection_df['Record ID'] == i]['gridid'].tolist()
     grid_cell_count = len(grid_id_list)
+
+    # calculate trap effort per cell
     trap_effort = no_detection_df[no_detection_df['Record ID'] == i]['Trap effort'].values[0]
     trap_effort_per_cell = trap_effort / grid_cell_count
 
@@ -144,32 +147,36 @@ for i in set(no_detection_df['Record ID'].tolist()):
     country = no_detection_df[no_detection_df['Record ID'] == i]['Tiger Range Country'].values[0]
     name_of_observer = no_detection_df[no_detection_df['Record ID'] == i]['Publication Contact (Name)'].values[0]
     email_address = no_detection_df[no_detection_df['Record ID'] == i]['Publication Contact (email)'].values[0]
+    organizational_affiliation = no_detection_df[no_detection_df['Record ID'] == i]['organizational affiliation'].values[0]
     project_id = no_detection_df[no_detection_df['Record ID'] == i]['Study ID'].values[0]
-    site_name = no_detection_df[no_detection_df['Record ID'] == i]['Site Name'].values[0].replace('\n', '')
-    year_pub = no_detection_df[no_detection_df['Record ID'] == i]['Year of publication'].values[0]
-    title_pub = no_detection_df[no_detection_df['Record ID'] == i]['Publication Title'].values[0].replace('\n', '')
-    notes = "{year_pub} : {title_pub} : {site_name}".format(year_pub=year_pub, title_pub=title_pub, site_name=site_name)
+    site_name = no_detection_df[no_detection_df['Record ID'] == i]['Site Name'].values[0]
+    year_pub = int(no_detection_df[no_detection_df['Record ID'] == i]['Year of publication'].values[0])
+    title_pub = no_detection_df[no_detection_df['Record ID'] == i]['Publication Title'].values[0]
     deployment_date = no_detection_df[no_detection_df['Record ID'] == i]['Sampling Start Date'].values[0]
     pickup_date = no_detection_df[no_detection_df['Record ID'] == i]['Sampling End Date'].values[0]
+    notes = "{record_id} : {year_pub} : {title_pub} : {site_name}".format(
+        record_id=int(i), year_pub=year_pub, title_pub=title_pub, site_name=site_name)
 
     # for each unique cell id associated with the site append CT deployment data
     for grid_id in set(grid_id_list):
         deployment_id = '{record_id}_{grid_id}'.format(record_id=i, grid_id=grid_id)
 
-        # append record to dictionary
         d.append(
             {
                 'country': country,
+                'grid': 'tiger_zone_grid',
                 'name of observer/PI': name_of_observer,
                 'email address': email_address,
+                'organizational affiliation': organizational_affiliation,
                 'project ID': project_id,
                 'deployment ID': deployment_id,
                 'grid cell label': grid_id,
                 'deployment date/time': deployment_date,
                 'pickup date/time': pickup_date,
                 'trap effort': trap_effort_per_cell,
-                'notes': notes,
-                'no detection': 1
+                'no detections': 1,
+                'notes': notes
+
             }
         )
         # for ct_no in range(ct_per_cell):
@@ -196,5 +203,5 @@ ct_deployment = pd.concat([ct_deployment, pd.DataFrame(d)])
 
 if ct_deployment_save:
     ct_deployment_csv = os.path.join(DATA_DIR, 'abishek_data_summary',
-                                     'TigerDensity_no_detection_ct_deployment_formatted.csv')
+                                     'TigerDensity_no_detection_ct_deployments_grid.csv')
     ct_deployment.to_csv(ct_deployment_csv, index=False)
