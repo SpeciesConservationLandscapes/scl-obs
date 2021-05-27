@@ -12,7 +12,7 @@ FROM
 WHERE
 	CI_CameraTrapDeployment.CI_GridID=18
 
-/*--972 rows
+/*
 UPDATE CI_CameraTrapDeployment
 SET CI_GridID=G2.CI_GridID
 	,CI_GridCellID=G2.CI_GridCellID

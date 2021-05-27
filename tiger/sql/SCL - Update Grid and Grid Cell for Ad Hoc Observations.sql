@@ -13,7 +13,6 @@ WHERE
 	CI_AdHocObservation.CI_GridID=18
 
 /*
---25,090 rows
 UPDATE CI_AdHocObservation
 SET CI_GridID=G2.CI_GridID
 	,CI_GridCellID=G2.CI_GridCellID
