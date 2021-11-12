@@ -14,9 +14,10 @@ API_KEY = "JmEl73qnqQGg1yyZdCilykmM"
 
 def zotero_to_csv(library_id, library_type, api_key, save_dir):
 
-    date = datetime.date.today().strftime("%Y-%m-%d")
 
-    zot = zotero.Zotero(library_id=LIBRARY_ID, library_type=LIBRARY_TYPE, api_key=API_KEY)
+    save_date = datetime.date.today().strftime("%Y-%m-%d")
+
+    zot = zotero.Zotero(library_id=library_id, library_type=library_type, api_key=api_key)
     items = zot.everything(zot.top())
 
     references = []
@@ -29,8 +30,8 @@ def zotero_to_csv(library_id, library_type, api_key, save_dir):
 
         title = item['data']['title']
 
+        authors = []
         if 'creators' in item['data']:
-            authors = []
             for author in item['data']['creators']:
                 if 'lastName' in author and 'firstName' in author:
                     firstname = author['lastName']
@@ -50,7 +51,9 @@ def zotero_to_csv(library_id, library_type, api_key, save_dir):
 
     zotero_df = pd.DataFrame(references)
 
-    if save_dir is True:
-        zotero_df.to_csv(os.path.join(save_dir, '{}_{}_references.csv'.format(date, library_id)), index=False)
+    save_path = os.path.join(save_dir,'{}_{}_zotero_library.csv'.format(save_date, library_id))
+    zotero_df.to_csv(save_path, index=False)
 
     return zotero_df
+
+x = zotero_to_csv(LIBRARY_ID, LIBRARY_TYPE, API_KEY, DATA_DIR)

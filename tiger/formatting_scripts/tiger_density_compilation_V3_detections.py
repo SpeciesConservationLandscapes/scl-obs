@@ -36,19 +36,19 @@ detection_save = False
 ad_hoc_save = True
 
 # data = pd.read_excel(os.path.join(UNFORMATTED_DIR, 'TigerDensityCompilation_V_3.2.xlsx'), header=1)
-data = pd.read_csv(os.path.join(UNFORMATTED_DIR, 'TigerDensityCompilation_V_3.2_org_affiliations.csv'), header=0)
+data = pd.read_csv(os.path.join(UNFORMATTED_DIR, 'tiger_density_compilation_V3_ref.csv'), header=0)
 ad_hoc = pd.read_csv(os.path.join(TEMPLATE_DIR, 'tiger observation entry ad hoc grid.csv'), header=0)
 
 # grid_contains_point : all grid cells that contain a point from tiger site center point
 # grid_majority : intersection of study area polygon and cell, where tiger site polygon overlaps more than 50% of cell
 # grid_zone_overlap : list cells in tiger region grid that overlap
-grid_contains_point = pd.read_csv(os.path.join(DATA_DIR, 'abishek_data_summary',
-                                               'TigerDensity_grid_contains_point.csv'))
-grid_majority = pd.read_csv(os.path.join(DATA_DIR, 'abishek_data_summary', 'TigerDensity_grid_majority.csv'))
-grid_zone_overlap = pd.read_csv(os.path.join(DATA_DIR, 'abishek_data_summary',
+grid_contains_point = pd.read_csv(os.path.join(DATA_DIR, 'harihar_tiger_density',
+                                               'TigerDensity_grid_contains_point_2.csv'))
+grid_majority = pd.read_csv(os.path.join(DATA_DIR, 'harihar_tiger_density', 'TigerDensity_grid_majority_2.csv'))
+grid_zone_overlap = pd.read_csv(os.path.join(DATA_DIR, 'harihar_tiger_density',
                                              'tiger_region_grid_overlap.csv'), header=0)
 
-data_year = pd.read_csv(os.path.join(DATA_DIR, 'abishek_data_summary',
+data_year = pd.read_csv(os.path.join(DATA_DIR, 'harihar_tiger_density',
                                      'TigerDensity_compilation_startyear_endyear.csv'), header=0)
 
 data = data.merge(data_year, left_on='Record ID', right_on='RecordID').drop(columns='RecordID')
@@ -76,10 +76,14 @@ columns = ['Record ID',
            'Trap effort',
            'Estimated D', 'SE (D)', 'Lower CI (D)', 'Upper CI (D)', 'Estimated N',
            'Estimated D.1', 'SE (D).1', 'Lower CI (D).1', 'Upper CI (D).1', 'Estimated N.1',
-           'Estimated D.2', 'SD (D)', 'Lower HPD (D)', 'Upper HPD (D)', 'Estimated N.2'
+           'Estimated D.2', 'SD (D)', 'Lower HPD (D)', 'Upper HPD (D)', 'Estimated N.2',
+           'citation',
+           'key'
            ]
 
 # format values, set data types, and coerce errors
+data['Study ID'] = pd.to_numeric(data['Study ID'], errors='coerce', downcast='integer')
+data['Record ID'] = pd.to_numeric(data['Record ID'], errors='coerce', downcast='integer')
 data['Min No. Indivs (Mt+1)'] = pd.to_numeric(data['Min No. Indivs (Mt+1)'], errors='coerce', downcast='integer')
 data['No. captures'] = pd.to_numeric(data['No. captures'], errors='coerce', downcast='integer')
 data['Sampling Start Date'] = pd.to_datetime(data['Sampling Start Date'], errors='coerce')
@@ -118,7 +122,7 @@ detection_df = data.loc[(data['Min No. Indivs (Mt+1)'] > 0)
                         | (data['Estimated D.2'] > 0)]
 
 detection_df = detection_df[columns]
-
+detection_df.to_csv(os.path.join(DATA_DIR, 'harihar_tiger_density','detection_check.csv'))
 # fill missing dates with study year
 detection_df['Sampling Start Date'].fillna(detection_df['StartYear'], inplace=True)
 detection_df['Sampling End Date'].fillna(detection_df['EndYear'], inplace=True)
@@ -136,29 +140,62 @@ for index, row in detection_df.iterrows():
     # Non-Spatial capture recapture
     if pd.isnull(row['SE (D)']):
         if pd.notnull(row['Estimated D']):
-            if pd.notnull(row['Upper CI (D)']):
-                detection_df.loc[index, 'SE (D)'] = high_ci_to_se(row['Upper CI (D)'], row['Estimated D'])
+            high_se = None
+            low_se = None
 
-            elif pd.notnull(row['Lower CI (D)']):
-                detection_df.loc[index, 'SE (D)'] = low_ci_to_se(row['Lower CI (D)'], row['Estimated D'])
+            if pd.notnull(row['Upper CI (D)']):
+                high_se = high_ci_to_se(row['Upper CI (D)'], row['Estimated D'])
+
+            if pd.notnull(row['Lower CI (D)']):
+                low_se = low_ci_to_se(row['Lower CI (D)'], row['Estimated D'])
+
+            if high_se is not None and low_se is not None:
+                detection_df.loc[index, 'SE (D)'] = (low_se + high_se) / 2
+
+            elif high_se is not None:
+                detection_df.loc[index, 'SE (D)'] = high_se
+
+            elif low_se is not None:
+                detection_df.loc[index, 'SE (D)'] = low_se
 
     # Maximum Likelihood Spatial Capture-Recapture
     if pd.isnull(row['SE (D).1']):
         if pd.notnull(row['Estimated D.1']):
+            high_se = None
+            low_se = None
             if pd.notna(row['Upper CI (D).1']):
-                detection_df.loc[index, 'SE (D).1'] = high_ci_to_se(row['Upper CI (D).1'], row['Estimated D.1'])
+                high_se = high_ci_to_se(row['Upper CI (D).1'], row['Estimated D.1'])
 
-            elif pd.notnull(row['Lower CI (D).1']):
-                detection_df.loc[index, 'SE (D).1'] = low_ci_to_se(row['Lower CI (D).1'], row['Estimated D.1'])
+            if pd.notnull(row['Lower CI (D).1']):
+                low_se = low_ci_to_se(row['Lower CI (D).1'], row['Estimated D.1'])
 
+            if high_se is not None and low_se is not None:
+                detection_df.loc[index, 'SE (D)'] = (low_se + high_se) / 2
+
+            elif high_se is not None:
+                detection_df.loc[index, 'SE (D)'] = high_se
+
+            elif low_se is not None:
+                detection_df.loc[index, 'SE (D)'] = low_se
     # Bayesian Spatial Capture-Recapture
     if pd.isnull(row['SD (D)']):
         if pd.notnull(row['Estimated D.2']):
+            high_se = None
+            low_se = None
             if pd.notnull(['Upper HPD (D)']):
-                detection_df.loc[index, 'SD (D)'] = high_ci_to_se(row['Upper HPD (D)'], row['Estimated D.2'])
+                high_se = high_ci_to_se(row['Upper HPD (D)'], row['Estimated D.2'])
 
-            elif pd.notnull(row['Lower HPD (D)']):
-                detection_df.loc[index, 'SD (D)'] = low_ci_to_se(row['Lower HPD (D)'], row['Estimated D.2'])
+            if pd.notnull(row['Lower HPD (D)']):
+                low_se = low_ci_to_se(row['Lower HPD (D)'], row['Estimated D.2'])
+
+            if high_se is not None and low_se is not None:
+                detection_df.loc[index, 'SE (D)'] = (low_se + high_se) / 2
+
+            elif high_se is not None:
+                detection_df.loc[index, 'SE (D)'] = high_se
+
+            elif low_se is not None:
+                detection_df.loc[index, 'SE (D)'] = low_se
 
 # flag records for review
 # no density estimate
@@ -221,26 +258,27 @@ detection_df.fillna({'density': detection_df['Estimated D'] * D_D1_conversion_fa
                      'standard error': detection_df['SE (D)'] * D_D1_conversion_factor,
                      'model': 'D'}, inplace=True)
 
-
+detection_df.to_csv(os.path.join(DATA_DIR, 'harihar_tiger_density','detection_check.csv'))
 # concatenate grid majority and point tables then drop duplicates
-grid_majority = grid_majority[grid_majority['majority'] == 1]
-grid_cells = pd.concat([grid_majority, grid_contains_point]).drop_duplicates().drop(columns='majority')
+grid_cells = pd.concat([grid_majority, grid_contains_point]).drop(columns=['majority'])
+grid_cells.drop_duplicates(inplace=True)
 
 # drop cells where zones 2 and 3 overlap zone 1 to prevent double counting
 # exception cells with points near border of zone 1 and 2
-exceptions = [159669, 158907]
+exceptions = ['159669_2', '158907_2', '175697_2']
 grid_zone_overlap = grid_zone_overlap['id'].tolist()
 
-if exceptions in grid_zone_overlap:
-    grid_zone_overlap = grid_zone_overlap.remove(exceptions)
+if len(exceptions) > 0:
+    grid_zone_overlap = set(grid_zone_overlap) - set(exceptions)
 
 # get list of cells excluding cells in zone overlap list
-grid_cells = grid_cells[~grid_cells['gridid'].isin(grid_zone_overlap)]
+grid_cells = grid_cells[~grid_cells['id'].isin(grid_zone_overlap)]
+grid_cells.rename(columns={'id':'gridid'}, inplace=True)
 
 # left join grid ids to detection data on Record ID
 detection_df = detection_df.merge(grid_cells, left_on='Record ID', right_on='RecordID', how='left').drop(
     columns='RecordID')
-
+print(detection_df.loc[detection_df['Record ID'] == 628].head())
 # for each study: create one record for each cell in the study area
 d = []
 for i in set(detection_df['Record ID'].tolist()):
@@ -260,8 +298,10 @@ for i in set(detection_df['Record ID'].tolist()):
     end_observation_date = detection_df[detection_df['Record ID'] == i]['Sampling End Date'].values[0]
     density = detection_df[detection_df['Record ID'] == i]['density'].values[0]
     standard_error = detection_df[detection_df['Record ID'] == i]['standard error'].values[0]
-    notes = "{record_id} : {year_pub} : {title_pub} : {site_name}".format(
-        record_id=int(i), year_pub=year_pub, title_pub=title_pub, site_name=site_name)
+    reference = detection_df[detection_df['Record ID'] == i]['citation'].values[0]
+    study_id = int(detection_df[detection_df['Record ID'] == i]['Study ID'].values[0])
+    key = detection_df[detection_df['Record ID'] == i]['key'].values[0]
+    notes = 'zotero key: {} | study ID: {} | record ID: {} :'.format(key, study_id, int(i))
 
     # for each unique cell id associated with the site append ad hoc data
     for grid_id in set(grid_id_list):
@@ -270,7 +310,7 @@ for i in set(detection_df['Record ID'].tolist()):
         d.append(
                     {
                         'country': country,
-                        'grid': 'tiger_zone_grid',
+                        'grid': 'tiger_region_grid',
                         'name of observer/PI': name_of_observer,
                         'email address': email_address,
                         'organizational affiliation': organizational_affiliation,
@@ -280,6 +320,7 @@ for i in set(detection_df['Record ID'].tolist()):
                         'Photograph': 1,
                         'density': density,
                         'density standard error': standard_error,
+                        'reference': reference,
                         'notes': notes,
                     }
                 )
@@ -288,7 +329,12 @@ ad_hoc = pd.concat([ad_hoc, pd.DataFrame(d)])
 
 
 if ad_hoc_save:
-    ad_hoc_csv = os.path.join(DATA_DIR, 'abishek_data_summary',
-                              'tiger_density_compilation_detection_ad_hoc_grid.csv')
-    ad_hoc.to_csv(ad_hoc_csv, index=False)
-
+    ad_hoc_csv = os.path.join(DATA_DIR, 'harihar_tiger_density',
+                              'harihar_tiger_density_compilation_detection_ad_hoc_grid.csv')
+    ad_hoc.to_csv(ad_hoc_csv, chunksize=5000, index=False)
+    #
+    # chunk_size = 10000
+    # counter = 0
+    # for chunk in pd.read_csv(filename, chunksize=chunk_size):
+    #     counter = counter + 1
+    #     chunk.to_csv(f'nick_{str(counter)}.csv.gz', compression='gzip', index=False)

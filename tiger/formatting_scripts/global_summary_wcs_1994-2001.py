@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 # Paths
-PROJECT_DIR = r'C:\Users\jesse\PycharmProjects\scl-obs'
+PROJECT_DIR = r'C:\Users\jesse\PycharmProjects\scl-obs\tiger'
 DATA_DIR = r'C:\Users\jesse\Documents\wcs_tiger\data'
 UNFORMATTED_DIR = os.path.join(DATA_DIR, 'unformatted_data')
 FORMATTED_DIR = os.path.join(DATA_DIR, 'tip_formatted_data')
@@ -12,13 +12,9 @@ TEMPLATE_DIR = os.path.join(PROJECT_DIR, 'ingest_template')
 # Import data and TIP templates
 data = pd.read_excel(os.path.join(UNFORMATTED_DIR, 'TigerPointData_proc.6_headerfix.xls'), header=0)
 adhoc = pd.read_csv(os.path.join(TEMPLATE_DIR, 'tiger observation entry ad hoc latlon.csv'), header=0)
-ct_observation = pd.read_csv(os.path.join(TEMPLATE_DIR, 'tiger observation entry CT observations.csv'), header=0)
-prey_list = pd.read_csv(os.path.join(PROJECT_DIR, 'prey_list', '2021-03-15_prey_list.csv'))
+prey_list = pd.read_csv(os.path.join(PROJECT_DIR, 'prey_list', 'prey_list.csv'))
 
 # data.columns = data.columns.str.strip().str.lower().str.replace(' ', '_').str.replace('(', '').str.replace(')', '')
-print(data.columns.values.tolist())
-
-
 
 adhoc['country'] = data['Country']
 adhoc['name of observer/PI'] = data['Researcher(s)']
@@ -27,7 +23,6 @@ adhoc['email address'] = 'hnaing@wcs.org'
 adhoc['observation date'] = pd.to_datetime(data['Date of Last Observation'], errors='coerce')
 adhoc['observation longitude'] = data['Longitude']
 adhoc['observation latitude'] = data['Latitude']
-adhoc['# adults sex unknown'] = ''
 
 # Location Method
 adhoc['GPS'] = np.where(data['GPS'] > 1, 1, 0)
@@ -50,7 +45,7 @@ adhoc['Vocalizations Heard'] = np.where(data['Heard'] >= 1, 1, 0)
 adhoc['Observation Type Report'] = np.where(data['Report (high confidence)'] >= 1, 1, 0)
 
 adhoc['# adults sex unknown'] = data['# adults sex unknown'].fillna(0).astype(dtype=int)
-adhoc['# adult  females'] = data['# adult females'].fillna(0).astype(dtype=int)
+adhoc['# adult females'] = data['# adult females'].fillna(0).astype(dtype=int)
 adhoc['# cubs (either sex - 1-12 month old)'] = data['# cubs (either sex - 1-12 month old)'].fillna(0).astype(dtype=int)
 adhoc['notes'] = data['Notes']
 
