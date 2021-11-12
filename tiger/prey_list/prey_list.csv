@@ -1,0 +1,138 @@
+Taxon,Species,Latin Name,prey type
+Mammal,Dhole,Cuon alpinus,small prey
+Mammal,Large Indian civet,Viverra zibetha,small prey
+Mammal,Red muntjac,Muntiacus muntjak,small prey
+Mammal,Bat species,Bat sp.,small prey
+Mammal,Gaur,Bos gaurus,large prey
+Mammal,Eurasian wild pig,Sus scrofa,large prey
+Insect,Insect,,small prey
+Mammal,Common palm civet,Paradoxurus hermaphroditus,small prey
+Mammal,Leopard cat,Prionailurus bengalensis,small prey
+Bird,Bird species,,small prey
+Mammal,Crab-eating mongoose,Herpestes urva,small prey
+Mammal,Clouded leopard,Neofelis nebulosa,large prey
+Mammal,Yellow-throated marten,Martes flavigula,small prey
+Mammal,Asiatic golden cat,Catopuma temminckii,small prey
+Mammal,Malayan porcupine,Hystrix brachyura,small prey
+Mammal,Northern pig-tailed macaque,Macaca leonina,small prey
+Mammal,Malayan sun bear,Helarctos malayanus,large prey
+Mammal,Shortridge's langur,Trachypithecus shortridgei,small prey
+Bird,Indian pied hornbill,Anthracoceros coronatus,small prey
+Mammal,Marbled cat,Pardofelis marmorata,small prey
+Mammal and Bird,Dhole and Red junglefowl,,small prey
+Bird,Red junglefowl,Gallus gallus,small prey
+Mammal,Tiger,Panthera tigris,
+Mammal,Asiatic brush-tailed porcupine,Atherurus macrourus,small prey
+Bird,Kalij pheasant,Lophura leucomelanos,small prey
+Bird,Gray peacock-pheasant,Polyplectron bicalcaratum,small prey
+Mammal,Asiatic black bear,Ursus thibetanus,large prey
+Mammal,Stump-tailed macaque,Macaca arctoides,small prey
+Bird,White-winged duck,Asarcornis scutulata,small prey
+Mammal,Red serow,Capricornis rubidus,large prey
+Mammal,Macaque species,Macaque sp.,small prey
+Mammal,Hog badger,Arctonyx collaris,small prey
+Mammal,Jungle cat,Felis chaus,small prey
+Mammal,Leopard,Panthera pardus fusca,large prey
+Mammal,Binturong,Arctictis binturong,small prey
+Mammal,Rhesus macaque,Macaca mulatta,small prey
+Mammal,Pangolin species,Manis pentadactyla,small prey
+Mammal,Spotted linsang,Prionodon pardicolor,small prey
+Mammal,Asian small-clawed otter,Aonyx cinereus,small prey
+Reptile,Monitor lizard,Varanus bengalensis,small prey
+Mammal,Masked palm civet,Paguma larvata,small prey
+Mammal,Black giant squirrel,Ratufa bicolor,small prey
+Bird,Northern brown hornbill,Anorrhinus austeni,small prey
+Mammal,Chinese serow,Capricornis milneedwardsii,large prey
+Mammal,Sambar,Rusa unicolor,large prey
+Mammal,Asian elephant,Elephas maximus,large prey
+Mammal,Burmese ferret-badger,Melogale personata,small prey
+Bird,Crested serpent eagle,Spilornis cheela,small prey
+Mammal,Squirrel species,Squirrel sp.,small prey
+Mammal,Rodent species,Rodent sp.,small prey
+Bird,Oriental pied hornbill,Anthracoceros albirostris,small prey
+Mammal,Rat species,Rat sp.,small prey
+Insect,Bee,Bee,small prey
+Bird,Owl species,Owl sp.,small prey
+Bird,Emerald dove,Chalcophaps indica,small prey
+Bird,Bar-backed partridge,Arborophila brunneopectus,small prey
+Bird,Partridge species,Partridge sp.,small prey
+Bird,Quail species,Quail sp.,small prey
+Mammal,Banded linsang,Prionodon linsang,small prey
+Bird,Pigeon,Pigeon sp.,small prey
+Mammal,Serow species,Serow sp.,large prey
+Bird,Wood pecker,Wood pecker sp.,small prey
+Insect,Butterfly,Butterfly,small prey
+Mammal,Asian red-cheeked squirrel,Dremomys rufigenis,small prey
+Bird,Crimson sunbird,Aethopyga siparaja,small prey
+Bird,Black-backed forktail,Enicurus immaculatus,small prey
+Mammal,Variable squirrel,Variable squirrel,small prey
+Mammal,Lesser Chindwin flying squirrel,Petaurista sybilla,small prey
+Bird,Hill partridge,Arborophila torqueola,small prey
+Mammal,Eastern hoolock gibbon,Hoolock leuconedys,small prey
+Bird,Puff-throated Babbler,Pellorneum ruficeps,small prey
+Bird,White-rumped shama,Copsychus malabaricus,small prey
+Bird,Blue whistling thrush,Myophonus caeruleus,small prey
+Bird,Slaty-backed forktail,Enicurus schistaceus,small prey
+Bird,Common kingfisher,Alcedo atthis,small prey
+Reptile,Snake species,Snake sp.,small prey
+Bird,Grey-headed woodpecker,Picus canus,small prey
+Bird,Black stork,Ciconia nigra,small prey
+Mammal,Otter species,Otter sp.,small prey
+Bird,Black-naped monarch,Hypothymis azurea,small prey
+Bird,Eagle species,Eagle species,small prey
+Mammal,Chinese pangolin,Manis pentadactyla,small prey
+Mammal and Bird,Eurasian wild pig/ Red junglefowl,Eurasian wild pig/ Red junglefowl,large prey
+Bird,Pink-necked Green Pigeon,Treron vernans,small prey
+Mammal,Assam macaque,Macaca assamensis,small prey
+Mammal,Small-toothed palm civet,Arctogalidia trivirgata,small prey
+Mammal,Bear species,Bear species,large prey
+,AsianBlackBear,,large prey
+,AsianBrushtailedPorcupine,,small prey
+,AsianElephant,,large prey
+,AsianGoldenCat,,large prey
+,BlackStock,,small prey
+,BlueWhistlingThrush,,small prey
+,CappedLeafMonkey,,small prey
+,ChinesePangolin,,small prey
+,Cloudedleopard,,large prey
+,CommonBrownFishOwl,,small prey
+,CommonMuntjac,,small prey
+,CommonPalmCivet,,small prey
+,CrabEatingMongoose,,small prey
+,DomesticBuffalo,,large livestock
+,DomesticCattle,,large livestock
+,DomesticChicken,,small livestock
+,DomesticDog,,small livestock
+,DomesticElephant,,large livestock
+,DomesticPig,,large livestock
+,EastAsianPorcupine,,small prey
+,Edwardrat,,small prey
+,EurasianWildPig,,large prey
+,GreaterCoucal,,small prey
+,GreenMagpie,,small prey
+,GreenPeafowl,,small prey
+,GreyPeacockPheasant,,small prey
+,HogBadger,,small prey
+,Hogdeer,,small prey
+,ImperialHeron,,small prey
+,ImperialPigeon,,small prey
+,JungleFowlSpp,,small prey
+,KalijPheasant,,small prey
+,LargeIndianCivet,,small prey
+,LargeSpottedCivet,,small prey
+,LeopardCat,,small prey
+,MarbledCat,,small prey
+,MaskedPalmCivet,,small prey
+,OrientalPiedHornbill,,small prey
+,PigtailedMacaque,,small prey
+,RhesusMacaque,,small prey
+,RufousThroadedPartridge,,small prey
+,SmallIndianCivet,,small prey
+,SouthernSerow,,large prey
+,SpottedLinsang,,small prey
+,Stump-tailed/BearMacaque,,small prey
+,SunBear,,large prey
+,WhiteWingWoodDuck,,small prey
+,WildWaterBuffalo,,large prey
+,Woolyneckstock,,small prey
+,YellowThroatedMarten,,small prey
